@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple
-from .models import SemanticRecord
+from .models import SemanticRecord, EpisodicRecord
 from .utils import _nomralize_embedding, _jsonable_meta
 from sentence_transformers import SentenceTransformer
 
@@ -24,7 +24,7 @@ class VectorStore(ABC):
         ...
 
     @abstractmethod
-    def delete(self, mids: List[str]) -> int:
+    def delete(self, mids: List[str]) -> List[int]:
         ...
 
     @abstractmethod
@@ -36,8 +36,8 @@ class VectorStore(ABC):
         ...
 
 class FaissVectorStore(VectorStore):
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(os.path.join(base_dir, "./.cache/all-MiniLM-L6-v2"))
+    def __init__(self, model_path: str = "./.cache/all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(os.path.join(base_dir, model_path))
         self.index = None
         self.dim = None
         self.meta: Dict[int, Dict] = {} # {id: SemanticRecord}
@@ -55,7 +55,7 @@ class FaissVectorStore(VectorStore):
             self.index = faiss.IndexIDMap2(base)
             self.dim = dim
     
-    def _separate_add_and_update(self, raws: List[SemanticRecord]) -> Tuple[List[SemanticRecord], List[SemanticRecord]]:
+    def _separate_add_and_update(self, raws: List[Union[SemanticRecord, EpisodicRecord]]) -> Tuple[List[Union[SemanticRecord, EpisodicRecord]], List[Union[SemanticRecord, EpisodicRecord]]]:
         reverse_map = {mid : fid for fid, mid in self.fidmap2mid.items()}
         adds, updates = [], []
         for raw in raws:
@@ -65,7 +65,7 @@ class FaissVectorStore(VectorStore):
                 adds.append(raw)
         return adds, updates
     
-    def add(self, raws: List[SemanticRecord]) -> List[int]:
+    def add(self, raws: List[Union[SemanticRecord, EpisodicRecord]]) -> List[int]:
         if len(raws) == 0:
             return []
         
@@ -85,7 +85,7 @@ class FaissVectorStore(VectorStore):
             self.meta[int(i)] = r
         return ids.tolist()
 
-    def update(self, raws: List[SemanticRecord]) -> List[int]:
+    def update(self, raws: Union[SemanticRecord, EpisodicRecord]) -> List[int]:
         if len(raws) == 0:
             return []
 
@@ -97,7 +97,7 @@ class FaissVectorStore(VectorStore):
             self.meta[int(i)] = r
         return ids.tolist()
 
-    def batch_memory_process(self, raws: List[SemanticRecord]) -> None:
+    def batch_memory_process(self, raws: Union[SemanticRecord, EpisodicRecord]) -> None:
         adds, updates = self._separate_add_and_update(raws)
         self.add(adds)
         self.update(updates)
@@ -119,7 +119,7 @@ class FaissVectorStore(VectorStore):
             results.append((float(score), md))
         return results
     
-    def delete(self, mids: List[str]) -> None:
+    def delete(self, mids: List[str]) -> List[int]:
         if self.index is None or not mids:
             return        
         ids = [fid for fid, mid in self.fidmap2mid.items() if mid in mids]
@@ -133,6 +133,7 @@ class FaissVectorStore(VectorStore):
 
         for i in ids:
             self.meta.pop(int(i), None)
+        return removed
 
     def save(self, path: str) -> None:
         os.makedirs(path, exist_ok=True)
@@ -144,7 +145,7 @@ class FaissVectorStore(VectorStore):
         self.index = faiss.read_index(os.path.join(path, "faiss.index"))
         with open(os.path.join(path, "meta.json"), "r", encoding="utf-8") as f:
             data = json.load(f)
-        self.meta = {int(k) : v for k, v in data["meta"].items()}
+        self.meta = {int(k) : SemanticRecord.from_dict(v) for k, v in data["meta"].items()}
         self._next_id = int(data.get("faiss_id", self.index.ntotal))
         self.dim = self.index.d
 

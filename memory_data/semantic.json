@@ -1,6 +1,6 @@
 [
   {
-    "id": "sem_e28fb4f8",
+    "id": "sem_989a79a9",
     "summary": "Fog augmentations most beneficial when baseline lacks weather variability.",
     "detail": "Prioritize fog injection when training data is captured in controlled conditions.",
     "source_ids": [
@@ -11,7 +11,22 @@
       "robustness"
     ],
     "confidence": 0.7,
-    "created_at": "2025-10-19T16:33:00.317202",
-    "updated_at": "2025-10-19T16:33:00.317209"
+    "created_at": "2025-10-20T15:50:50.653426",
+    "updated_at": "2025-10-20T15:50:50.653433"
+  },
+  {
+    "id": "sem_ed19d91e",
+    "summary": "New one.",
+    "detail": "I am the new one.",
+    "source_ids": [
+      "idea_aug_001"
+    ],
+    "tags": [
+      "augmentation",
+      "robustness"
+    ],
+    "confidence": 0.7,
+    "created_at": "2025-10-20T15:50:51.456239",
+    "updated_at": "2025-10-20T15:50:51.456250"
   }
 ]

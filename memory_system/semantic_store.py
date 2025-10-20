@@ -1,5 +1,6 @@
 from typing import Iterable, List, Optional
 import faiss
+import torch
 import numpy as np
 
 from .models import SemanticRecord
@@ -8,8 +9,6 @@ from .utils import compute_overlap_score, ensure_tuple, new_id, now_iso
 
 
 class SemanticMemory:
-    """Distilled insights usable across experiments."""
-
     def __init__(self, path: str = "memory_data/semantic.json") -> None:
         self._store = JsonFileStore(path)
 

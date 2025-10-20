@@ -9,7 +9,7 @@ from memory_system import (
     MemoryRetriever,
     SemanticMemory,
     WorkingMemory,
-    FaissVectorStore
+    FaissVectorStore,
 )
 
 
@@ -48,7 +48,7 @@ def main() -> None:
         tags=("execution", "augmentation"),
     )
 
-    semantic.add(
+    new_sem_mem = semantic.add(
         summary="Fog augmentations most beneficial when baseline lacks weather variability.",
         detail="Prioritize fog injection when training data is captured in controlled conditions.",
         source_ids=["idea_aug_001"],
@@ -57,11 +57,29 @@ def main() -> None:
     )
 
     semantic_fvs = FaissVectorStore()
-    print(semantic_fvs.add(semantic.list_recent()))
+    print(semantic_fvs.add([new_sem_mem]))
     
-    print(semantic_fvs.query(query_text="baseline lacks weather variability"))
+    result = semantic_fvs.query(query_text="baseline lacks weather variability")[0][1]
 
-    print(semantic_fvs.fidmap2mid)
+    print(result.detail)
+    memory_id = result.id
+
+    semantic_fvs.delete([memory_id])
+
+    renew_sem_mem = semantic.add(
+        summary="New one.",
+        detail="I am the new one.",
+        source_ids=["idea_aug_001"],
+        tags=("augmentation", "robustness"),
+        confidence=0.7,
+    )
+
+    print(semantic_fvs.add([renew_sem_mem]))
+
+    semantic_fvs.save("test")
+
+    new_semantic_fvs = FaissVectorStore()
+    new_semantic_fvs.load("test")
 
 
     retriever = MemoryRetriever(working, episodic, semantic)
