@@ -36,8 +36,16 @@ def ensure_tuple(value: Optional[Iterable]) -> Tuple:
         return value
     return tuple(value)
 
-def nomralize_embedding(emb: np.float32) -> np.float32:
+
+def _nomralize_embedding(emb: np.float32) -> np.float32:
     norm = np.linalg.norm(emb)
     if norm == 0:
         return emb
     return emb / norm 
+
+
+def _jsonable_meta(meta: dict) -> dict:
+    output = {}
+    for k, v in meta.items():
+        output[k] = v.to_dict()
+    return output
