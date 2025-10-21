@@ -3,6 +3,7 @@ import shutil
 import sys
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, field_validator, validate_call
+from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -19,8 +20,7 @@ from memory_system.utils import now_iso, new_id
 
 class MemorySystemConfig(BaseModel):
     memory_type: Literal["semantic", "episodic", "working"] = "semantic"
-    model_path: Optional[str] = Field(None, description="Path to the model used for vector embeddings.")
-    memory_store_path: Optional[str] = Field(None, description="Path to the memory store.")
+    model_path: str = Field("./.cache/all-MiniLM-L6-v2", description="Path to the model used for vector embeddings.")
 
 class MemoryRecordPayload(BaseModel):
     summary: str = Field(..., description="A brief summary of the memory.")
@@ -40,25 +40,29 @@ class MemorySystem(ABC):
     @abstractmethod
     def instantiate_epi_record(self, **kwargs) -> EpisodicRecord:
         ...
+    
+    @abstractmethod
+    def size(self) -> int:
+        ...
 
     @abstractmethod
-    def add(self, List[Union[SemanticRecord, EpisodicRecord]]) -> List[int]:
+    def add(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
         ...
     
     @abstractmethod
-    def update(self, List[Union[SemanticRecord, EpisodicRecord]]) -> List[int]:
+    def update(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
         ...
     
     @abstractmethod
-    def batch_memory_process(self, List[Union[SemanticRecord, EpisodicRecord]]) -> List[int]:
+    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
         ...
     
     @abstractmethod
-    def delete(self, mids: List[str]) -> List[int]:
+    def delete(self, mids: List[str]) -> bool:
         ...
     
     @abstractmethod
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord]]]]:
         ...
     
     @abstractmethod
@@ -75,15 +79,6 @@ class FAISSMemorySystem(MemorySystem):
 
         self.memory_type = cfg.memory_type
         self.vector_store = FaissVectorStore(cfg.model_path)
-
-        if self.memory_type == "semantic":
-            self.memory = EpisodicMemory(cfg.memory_store_path)
-        elif self.memory_type == "episodic":
-            self.memory = SemanticMemory(cfg.memory_store_path)
-        elif self.memory_type == "working":
-            self.memory = WorkingMemory()
-        else:
-            raise ValueError(f"Unknown memory type: {self.memory_type}")
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
         cfg = MemoryRecordPayload(**kwargs)
@@ -113,30 +108,61 @@ class FAISSMemorySystem(MemorySystem):
         )        
         return record
 
-    def add(self, new_memories: List[Union[SemanticRecord, EpisodicRecord]] = None) -> None:
-        self.vector_store.add(new_memorys) # Add new memory to FAISS vectorstore.
+    def size(self) -> int:
+        return self.vector_store._get_record_nums()
+
+    def add(self, memories: List[Union[SemanticRecord, EpisodicRecord]] = None) -> bool:
+        try:
+            self.vector_store.add(memories) # Add new memory to FAISS vectorstore.
+            return True
+        except Exception as e:
+            print(f"Error adding memories: {e}")
+            return False
         # TODO: working/procedural memory system 
     
-    def update(self, updated_memories: List[Union[SemanticRecord, EpisodicRecord]]):
-        self.vector_store.update(updated_memories) # Update new memory to FAISS vectorstore.
+    def update(self, memories: List[SemanticRecord] = None) -> bool:
+        try:
+            self.vector_store.update(memories) # Update new memory to FAISS vectorstore.
+            return True
+        except Exception as e:
+            print(f"Error updating memories: {e}")
+            return False
         # TODO: working/procedural memory system 
 
-    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord]]):
+    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord]] = None) -> bool:
         '''If you can not distinguish memories need to be add or update, use this method.'''
-        self.vector_store.batch_memory_process(memories)
+        try:
+            self.vector_store.batch_memory_process(memories)
+            return True
+        except Exception as e:
+            print(f"Error processing memories: {e}")
+            return False
     
-    def delete(self, mids: List[str]) -> List[int]:
-        removed = self.vector_store.delete(mids)
-        return removed
+    def delete(self, mids: List[str]) -> bool:
+        try:
+            self.vector_store.delete(mids)
+            return True
+        except Exception as e:
+            print(f"Error deleting memories: {e}")
+            return False
+        return 
     
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord]]]]:
         results = self.vector_store.query(query_text, limit=limit, filters=filters)
         return results
     
-    def save(self, path: str) -> None:
-        self.vector_store.save(path)
+    def save(self, path: str) -> bool:
+        try:
+            self.vector_store.save(path)
+            return True
+        except Exception as e:
+            return False
     
-    def load(self, path: str) -> None:
-        self.vector_store.load(path)
+    def load(self, path: str) -> bool:
+        try:
+            self.vector_store.load(path)
+            return True
+        except Exception as e:
+            return False
 
         

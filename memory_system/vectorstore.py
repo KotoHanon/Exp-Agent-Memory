@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from .models import SemanticRecord, EpisodicRecord
 from .utils import _nomralize_embedding, _jsonable_meta
 from sentence_transformers import SentenceTransformer
@@ -24,7 +24,7 @@ class VectorStore(ABC):
         ...
 
     @abstractmethod
-    def delete(self, mids: List[str]) -> List[int]:
+    def delete(self, mids: List[str]) -> None:
         ...
 
     @abstractmethod
@@ -41,7 +41,7 @@ class FaissVectorStore(VectorStore):
         self.index = None
         self.dim = None
         self.meta: Dict[int, Dict] = {} # {id: SemanticRecord}
-        self.fidmap2mid: Dict[int, string] = {} #{faiss_id: memory_id}
+        self.fidmap2mid: Dict[int, str] = {} #{faiss_id: memory_id}
         self._next_id = 0
     
     def _embed(self, texts: list[str]):
@@ -65,12 +65,15 @@ class FaissVectorStore(VectorStore):
                 adds.append(raw)
         return adds, updates
     
+    def _get_record_nums(self) -> int:
+        return len(self.meta)
+    
     def add(self, raws: List[Union[SemanticRecord, EpisodicRecord]]) -> List[int]:
         if len(raws) == 0:
             return []
         
         # check existing ids
-        texts = [raw.detail for raw in raws]
+        texts = [raw.summary for raw in raws]
         mids = [raw.id for raw in raws]
         ids = np.arange(self._next_id, self._next_id + len(raws), dtype="int64")
         self.fidmap2mid.update({int(fid) : mid for fid, mid in zip(ids, mids)})
@@ -95,7 +98,7 @@ class FaissVectorStore(VectorStore):
         for i, r in zip(ids, raws):
             # bind data for every id
             self.meta[int(i)] = r
-        return ids.tolist()
+        return ids
 
     def batch_memory_process(self, raws: Union[SemanticRecord, EpisodicRecord]) -> None:
         adds, updates = self._separate_add_and_update(raws)
@@ -119,34 +122,38 @@ class FaissVectorStore(VectorStore):
             results.append((float(score), md))
         return results
     
-    def delete(self, mids: List[str]) -> List[int]:
+    def delete(self, mids: List[str]) -> None:
         if self.index is None or not mids:
-            return        
+            return
+
         ids = [fid for fid, mid in self.fidmap2mid.items() if mid in mids]
+        print("Deleting ids:", ids)
         indices = np.ascontiguousarray(ids, dtype="int64")
         try:
             sel = faiss.IDSelectorBatch(indices)
         except TypeError:
             sel = faiss.IDSelectorBatch(len(indices), faiss.swig_ptr(indices)) 
 
-        removed = int(self.index.remove_ids(sel))
-
+        self.index.remove_ids(sel)
         for i in ids:
             self.meta.pop(int(i), None)
-        return removed
 
     def save(self, path: str) -> None:
         os.makedirs(path, exist_ok=True)
         faiss.write_index(self.index, os.path.join(path, "faiss.index"))
         with open(os.path.join(path, "meta.json"), "w", encoding="utf-8") as f:
-            json.dump({"meta": _jsonable_meta(self.meta), "next_id": self._next_id}, f, ensure_ascii=False, indent=2)
+            json.dump({"meta": _jsonable_meta(self.meta), "next_id": self._next_id, "fidmap2mid": self.fidmap2mid}, f, ensure_ascii=False, indent=2)
 
     def load(self, path: str) -> None:
         self.index = faiss.read_index(os.path.join(path, "faiss.index"))
         with open(os.path.join(path, "meta.json"), "r", encoding="utf-8") as f:
             data = json.load(f)
-        self.meta = {int(k) : SemanticRecord.from_dict(v) for k, v in data["meta"].items()}
-        self._next_id = int(data.get("faiss_id", self.index.ntotal))
+        for k, v in data["meta"].items():
+            if "sem" in v.get("id", ""):
+                self.meta[int(k)] = SemanticRecord.from_dict(v)
+            elif "epi" in v.get("id", ""):
+                self.meta[int(k)] = EpisodicRecord.from_dict(v)
+        self._next_id = int(data.get("next_id", self.index.ntotal))
+        self.fidmap2mid = data.get("fidmap2mid", {})
         self.dim = self.index.d
-
-            
+        

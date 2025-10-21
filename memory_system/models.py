@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Iterable
+from .utils import now_iso
 
 
 class EpisodicRecord(object):
@@ -34,7 +35,7 @@ class EpisodicRecord(object):
             "tags": list(self.tags),
             "created_at": self.created_at,
         }
-
+    
     @classmethod
     def from_dict(cls, payload):
         # type: (Dict[str, Any]) -> "EpisodicRecord"
@@ -83,6 +84,24 @@ class SemanticRecord(object):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+    
+    def update(
+        self,
+        summary: Optional[str] = None,
+        detail: Optional[str] = None,
+        confidence: Optional[float] = None,
+        tags: Optional[Iterable[str]] = None,
+    ) -> None:
+        if summary is not None:
+            self.summary = summary
+        if detail is not None:
+            self.detail = detail
+        if confidence is not None:
+            self.confidence = confidence
+        if tags is not None:
+            self.tags = list(tags)
+        self.updated_at = now_iso()
+        
 
     @classmethod
     def from_dict(cls, payload):
