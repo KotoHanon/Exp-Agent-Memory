@@ -15,63 +15,10 @@ from memory_system import (
     FaissVectorStore,
     SemanticRecord,
     EpisodicRecord,
+    ProceduralRecord,
 )
 from memory_system.utils import now_iso, new_id
-
-class MemorySystemConfig(BaseModel):
-    memory_type: Literal["semantic", "episodic", "working"] = "semantic"
-    model_path: str = Field("./.cache/all-MiniLM-L6-v2", description="Path to the model used for vector embeddings.")
-
-class MemoryRecordPayload(BaseModel):
-    summary: str = Field(..., description="A brief summary of the memory.")
-    detail: Union[str, dict] = Field(..., description="Detailed information about the memory.")
-    stage: str = Field("", description="Stage of the memory.")
-    idea_id: str = Field("", description="Unique identifier for the idea.")
-    source_ids: Optional[List[str]] = Field(None, description="List of source IDs related to the memory.")
-    tags: Optional[Iterable[str]] = Field(None, description="Tags associated with the memory.")
-    metrics: Optional[dict] = Field(None, description="Metrics used for experiment.")
-    confidence: float = Field(0.0, description="Confidence score of the memory.")
-
-class MemorySystem(ABC):
-    @abstractmethod
-    def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
-        ...
-    
-    @abstractmethod
-    def instantiate_epi_record(self, **kwargs) -> EpisodicRecord:
-        ...
-    
-    @abstractmethod
-    def size(self) -> int:
-        ...
-
-    @abstractmethod
-    def add(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
-        ...
-    
-    @abstractmethod
-    def update(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
-        ...
-    
-    @abstractmethod
-    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord]]) -> bool:
-        ...
-    
-    @abstractmethod
-    def delete(self, mids: List[str]) -> bool:
-        ...
-    
-    @abstractmethod
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord]]]]:
-        ...
-    
-    @abstractmethod
-    def save(self, path: str) -> None:
-        ...
-
-    @abstractmethod
-    def load(self, path: str) -> None:
-        ...
+from .base_memory_system import MemorySystem, MemorySystemConfig, MemoryRecordPayload
 
 class FAISSMemorySystem(MemorySystem):
     def __init__(self, **kwargs):
@@ -108,19 +55,64 @@ class FAISSMemorySystem(MemorySystem):
         )        
         return record
 
+    def instantiate_proc_record(self, **kwargs) -> ProceduralRecord:
+        cfg = MemoryRecordPayload(**kwargs)
+        record = ProceduralRecord(
+            id=new_id("proc"),
+            name=cfg.name,
+            description=cfg.description,
+            steps=cfg.steps,
+            code=cfg.code,
+            tags=cfg.tags,
+            created_at=now_iso(),
+            updated_at=now_iso(),
+        )
+        return record
+
     def size(self) -> int:
         return self.vector_store._get_record_nums()
 
-    def add(self, memories: List[Union[SemanticRecord, EpisodicRecord]] = None) -> bool:
+    def get_records_by_ids(self, mids: List[str]) -> Union[List[SemanticRecord, None], List[EpisodicRecord, None], List[ProceduralRecord, None]]:
+        reverse_map = {mid: fid for fid, mid in self.vector_store.fidmap2mid.items()}
+        records = []
+        for mid in mids:
+            fid = reverse_map.get(mid, None)
+            try:
+                record = self.vector_store.meta[fid]
+            except KeyError as e:
+                record = None
+            records.append(record)
+        return records
+    
+    def get_last_k_records(self, k: int) -> Tuple[Union[List[SemanticRecord], List[EpisodicRecord], List[ProceduralRecord]], int]:
+        if k >= self.size():
+            return [record for record in self.vector_store.meta.values()], self.size()
+        
+        else:
+            sorted_fids = sorted(self.vector_store.fidmap2mid.keys(), reverse=True)
+            return [self.vector_store.meta[fid] for fid in sorted_fids[:real_k]], k
+    
+    def is_exists(self, mids: List[str]) -> List[bool]:
+        reverse_map = {mid: fid for fid, mid in self.vector_store.fidmap2mid.items()}
+        results = []
+        for mid in mids:
+            fid = reverse_map.get(mid, None)
+            if fid is not None and fid in self.vector_store.meta:
+                results.append(True)
+            else:
+                results.append(False)
+        return results
+        
+    def add(self, memories: List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = None) -> bool:
         try:
             self.vector_store.add(memories) # Add new memory to FAISS vectorstore.
             return True
         except Exception as e:
             print(f"Error adding memories: {e}")
             return False
-        # TODO: working/procedural memory system 
+        # TODO: working memory system 
     
-    def update(self, memories: List[SemanticRecord] = None) -> bool:
+    def update(self, memories: List[Union[SemanticRecord, ProceduralRecord]] = None) -> bool:
         try:
             self.vector_store.update(memories) # Update new memory to FAISS vectorstore.
             return True
@@ -129,7 +121,7 @@ class FAISSMemorySystem(MemorySystem):
             return False
         # TODO: working/procedural memory system 
 
-    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord]] = None) -> bool:
+    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = None) -> bool:
         '''If you can not distinguish memories need to be add or update, use this method.'''
         try:
             self.vector_store.batch_memory_process(memories)
@@ -145,9 +137,8 @@ class FAISSMemorySystem(MemorySystem):
         except Exception as e:
             print(f"Error deleting memories: {e}")
             return False
-        return 
     
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord]]]]:
+    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
         results = self.vector_store.query(query_text, limit=limit, filters=filters)
         return results
     
