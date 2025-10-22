@@ -5,14 +5,14 @@ from .utils import now_iso
 class EpisodicRecord(object):
     def __init__(
         self,
-        id,  # type: str
-        idea_id,  # type: str
-        stage,  # type: str
-        summary,  # type: str
-        detail,  # type: Dict[str, Any]
-        metrics=None,  # type: Optional[Dict[str, Any]]
-        tags=None,  # type: Optional[List[str]]
-        created_at="",  # type: str
+        id: str,
+        idea_id: str, 
+        stage: str, 
+        summary: str, 
+        detail: Dict[str, Any], 
+        metrics: Optional[Dict[str, Any]] = None, 
+        tags: Optional[List[str]] = None,  
+        created_at: str = "", 
     ):
         self.id = id
         self.idea_id = idea_id
@@ -23,8 +23,7 @@ class EpisodicRecord(object):
         self.tags = tags or []
         self.created_at = created_at
 
-    def to_dict(self):
-        # type: () -> Dict[str, Any]
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "idea_id": self.idea_id,
@@ -37,8 +36,7 @@ class EpisodicRecord(object):
         }
     
     @classmethod
-    def from_dict(cls, payload):
-        # type: (Dict[str, Any]) -> "EpisodicRecord"
+    def from_dict(cls, payload: Dict[str, Any]) -> EpisodicRecord:
         return cls(
             id=payload.get("id", ""),
             idea_id=payload.get("idea_id", ""),
@@ -54,14 +52,14 @@ class EpisodicRecord(object):
 class SemanticRecord(object):
     def __init__(
         self,
-        id,  # type: str
-        summary,  # type: str
-        detail,  # type: str
-        source_ids=None,  # type: Optional[List[str]]
-        tags=None,  # type: Optional[List[str]]
-        confidence=0.5,  # type: float
-        created_at="",  # type: str
-        updated_at="",  # type: str
+        id: str, 
+        summary: str,
+        detail: str, 
+        source_ids: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+        confidence: float = 0.0,
+        created_at: str = "", 
+        updated_at: str = "",
     ):
         self.id = id
         self.summary = summary
@@ -72,8 +70,7 @@ class SemanticRecord(object):
         self.created_at = created_at
         self.updated_at = updated_at
 
-    def to_dict(self):
-        # type: () -> Dict[str, Any]
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "summary": self.summary,
@@ -104,8 +101,7 @@ class SemanticRecord(object):
         
 
     @classmethod
-    def from_dict(cls, payload):
-        # type: (Dict[str, Any]) -> "SemanticRecord"
+    def from_dict(cls, payload: Dict[str, Any]) -> SemanticRecord:
         return cls(
             id=payload.get("id", ""),
             summary=payload.get("summary", ""),
@@ -115,6 +111,45 @@ class SemanticRecord(object):
             confidence=payload.get("confidence", 0.5),
             created_at=payload.get("created_at", ""),
             updated_at=payload.get("updated_at", ""),
+        )
+
+
+class ProceduralRecord(object):
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        description: str,
+        steps: List[str],
+        code: Optional[str] = None,
+        created_at: str = "",
+    ):
+        self.id = id
+        self.name = name
+        self.description = description
+        self.steps = steps
+        self.code = code
+        self.created_at = created_at
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "steps": list(self.steps),
+            "code": self.code,
+            "created_at": self.created_at,
+        }
+    
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> ProceduralRecord:
+        return cls(
+            id=payload.get("id", ""),
+            name=payload.get("name", ""),
+            description=payload.get("description", ""),
+            steps=payload.get("steps", []),
+            code=payload.get("code"),
+            created_at=payload.get("created_at", ""),
         )
 
 
@@ -142,3 +177,5 @@ class WorkingSnapshot(object):
             "active_tools": list(self.active_tools),
             "scratchpad": dict(self.scratchpad),
         }
+
+    
