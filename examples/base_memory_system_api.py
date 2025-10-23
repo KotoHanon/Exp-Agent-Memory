@@ -49,11 +49,11 @@ class MemorySystem(ABC):
         ...
     
     @abstractmethod
-    def get_records_by_ids(self, mids: List[str]) -> List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord, None]]:
+    def get_records_by_ids(self, mids: List[str]) -> Union[List[SemanticRecord], List[EpisodicRecord], List[ProceduralRecord]]:
         ...
     
     @abstractmethod
-    def get_last_k_records(self, k: int) -> List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]], int:
+    def get_last_k_records(self, k: int) -> Tuple[List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]], int]:
         ...
 
     @abstractmethod
@@ -77,7 +77,7 @@ class MemorySystem(ABC):
         ...
     
     @abstractmethod
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
         ...
     
     @abstractmethod

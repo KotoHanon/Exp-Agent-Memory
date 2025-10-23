@@ -18,7 +18,7 @@ from memory_system import (
     ProceduralRecord,
 )
 from memory_system.utils import now_iso, new_id
-from .base_memory_system import MemorySystem, MemorySystemConfig, MemoryRecordPayload
+from base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
 
 class FAISSMemorySystem(MemorySystem):
     def __init__(self, **kwargs):
@@ -72,7 +72,7 @@ class FAISSMemorySystem(MemorySystem):
     def size(self) -> int:
         return self.vector_store._get_record_nums()
 
-    def get_records_by_ids(self, mids: List[str]) -> Union[List[SemanticRecord, None], List[EpisodicRecord, None], List[ProceduralRecord, None]]:
+    def get_records_by_ids(self, mids: List[str]) -> Union[List[SemanticRecord], List[EpisodicRecord], List[ProceduralRecord]]:
         reverse_map = {mid: fid for fid, mid in self.vector_store.fidmap2mid.items()}
         records = []
         for mid in mids:
@@ -80,7 +80,8 @@ class FAISSMemorySystem(MemorySystem):
             try:
                 record = self.vector_store.meta[fid]
             except KeyError as e:
-                record = None
+                print(f"Record with id {mid} not found: {e}")
+                continue
             records.append(record)
         return records
     
@@ -91,7 +92,7 @@ class FAISSMemorySystem(MemorySystem):
         else:
             sorted_fids = sorted(self.vector_store.fidmap2mid.keys(), reverse=True)
             return [self.vector_store.meta[fid] for fid in sorted_fids[:real_k]], k
-    
+        
     def is_exists(self, mids: List[str]) -> List[bool]:
         reverse_map = {mid: fid for fid, mid in self.vector_store.fidmap2mid.items()}
         results = []
@@ -138,8 +139,12 @@ class FAISSMemorySystem(MemorySystem):
             print(f"Error deleting memories: {e}")
             return False
     
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
-        results = self.vector_store.query(query_text, limit=limit, filters=filters)
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
+        try:
+            results = self.vector_store.query(query_text, method=method, limit=limit, filters=filters)
+        except Exception as e:
+            print(f"Error querying memories: {e}")
+            results = []
         return results
     
     def save(self, path: str) -> bool:

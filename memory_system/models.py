@@ -11,7 +11,7 @@ class EpisodicRecord(object):
         summary: str, 
         detail: Dict[str, Any], 
         metrics: Optional[Dict[str, Any]] = None, 
-        tags: Optional[List[str]] = None,  
+        tags: Optional[Iterable[str]] = None,  
         created_at: str = "", 
     ):
         self.id = id
@@ -36,7 +36,7 @@ class EpisodicRecord(object):
         }
     
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> EpisodicRecord:
+    def from_dict(cls, payload: Dict[str, Any]):
         return cls(
             id=payload.get("id", ""),
             idea_id=payload.get("idea_id", ""),
@@ -56,7 +56,7 @@ class SemanticRecord(object):
         summary: str,
         detail: str, 
         source_ids: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[Iterable[str]] = None,
         confidence: float = 0.0,
         created_at: str = "", 
         updated_at: str = "",
@@ -101,7 +101,7 @@ class SemanticRecord(object):
         
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> SemanticRecord:
+    def from_dict(cls, payload: Dict[str, Any]):
         return cls(
             id=payload.get("id", ""),
             summary=payload.get("summary", ""),
@@ -122,14 +122,18 @@ class ProceduralRecord(object):
         description: str,
         steps: List[str],
         code: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
         created_at: str = "",
+        updated_at: str = "",
     ):
         self.id = id
         self.name = name
         self.description = description
         self.steps = steps
         self.code = code
+        self.tags = tags
         self.created_at = created_at
+        self.updated_at = updated_at
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -138,18 +142,22 @@ class ProceduralRecord(object):
             "description": self.description,
             "steps": list(self.steps),
             "code": self.code,
+            "tags": list(self.tags),
             "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
     
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> ProceduralRecord:
+    def from_dict(cls, payload: Dict[str, Any]):
         return cls(
             id=payload.get("id", ""),
             name=payload.get("name", ""),
             description=payload.get("description", ""),
             steps=payload.get("steps", []),
             code=payload.get("code"),
+            tags=payload.get("tags"),
             created_at=payload.get("created_at", ""),
+            updated_at=payload.get("updated_at", ""),
         )
 
 

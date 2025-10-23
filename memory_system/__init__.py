@@ -3,7 +3,7 @@ from .episodic_store import EpisodicMemory
 from .semantic_store import SemanticMemory
 from .retrieval import MemoryRetriever
 from .vectorstore import FaissVectorStore
-from .models import SemanticRecord, EpisodicRecord
+from .models import SemanticRecord, EpisodicRecord, ProceduralRecord
 
 __all__ = [
     "WorkingMemory",
@@ -13,4 +13,5 @@ __all__ = [
     "FaissVectorStore",
     "SemanticRecord",
     "EpisodicRecord",
+    "ProceduralRecord",
 ]

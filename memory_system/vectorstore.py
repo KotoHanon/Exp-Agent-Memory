@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Union
 from .models import SemanticRecord, EpisodicRecord, ProceduralRecord
-from .utils import _nomralize_embedding, _jsonable_meta
+from .utils import _nomralize_embedding, _jsonable_meta, compute_overlap_score
 from sentence_transformers import SentenceTransformer
+from rank_bm25 import BM25Okapi
 
 import numpy as np
 import json, os
 import faiss
+import re
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -20,7 +22,7 @@ class VectorStore(ABC):
         ...
 
     @abstractmethod
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
         ...
 
     @abstractmethod
@@ -105,21 +107,48 @@ class FaissVectorStore(VectorStore):
         self.add(adds)
         self.update(updates)
 
-    def query(self, query_text: str, limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+        assert method in ["embedding", "bm25", "overlapping"], "Unsupported query method."
+
         if self.index is None or self.index.ntotal == 0:
-            return []
-        q = self._embed([query_text])
-        D, I = self.index.search(q, limit)
+            return []       
         results = []
-        for score, _id in zip(D[0], I[0]):
-            if _id == -1:
-                continue
-            md = self.meta.get(int(_id), {})
-            if filters:
-                ok = all(md.get(k2) == v2 for k2, v2 in filters.items())
-                if not ok:
+
+        if method == "embedding":
+            q = self._embed([query_text])
+            D, I = self.index.search(q, limit)
+            for score, _id in zip(D[0], I[0]):
+                if _id == -1:
                     continue
-            results.append((float(score), md))
+                md = self.meta.get(int(_id), {})
+                if filters:
+                    ok = all(md.get(k2) == v2 for k2, v2 in filters.items())
+                    if not ok:
+                        continue
+                results.append((float(score), md))
+
+        elif method == "bm25":
+            corpus = [record.summary for record in self.meta.values()]
+            bmidmap2fid = {bmid: fid for bmid, fid in enumerate(self.fidmap2mid.keys())} # {bm25_id: faiss_id}
+            tokenized_corpus = [re.findall(r"\w+", (doc or "").lower()) for doc in corpus]
+            bm25 = BM25Okapi(tokenized_corpus, k1=1.5, b=0.75)
+            scores = bm25.get_scores(re.findall(r"\w+", (query_text or "").lower()))
+            top_bmid = sorted(range(len(scores)), key=lambda bmid: scores[bmid], reverse=True)[:limit]
+            for bmid in top_bmid:
+                fid = bmidmap2fid[bmid]
+                if fid == -1:
+                    continue
+                md = self.meta.get(int(fid), {})
+                if filters:
+                    ok = all(md.get(k2) == v2 for k2, v2 in filters.items())
+                    if not ok:
+                        continue
+                results.append((float(scores[bmid]), md))
+        
+        elif method == "overlapping":
+            # TODO: implement overlapping method
+            pass
+
         return results
     
     def delete(self, mids: List[str]) -> None:
