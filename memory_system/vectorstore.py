@@ -129,13 +129,15 @@ class FaissVectorStore(VectorStore):
 
         elif method == "bm25":
             corpus = [record.summary for record in self.meta.values()]
-            bmidmap2fid = {bmid: fid for bmid, fid in enumerate(self.fidmap2mid.keys())} # {bm25_id: faiss_id}
             tokenized_corpus = [re.findall(r"\w+", (doc or "").lower()) for doc in corpus]
+
+            idmap2fid = {bmid: fid for bmid, fid in enumerate(self.fidmap2mid.keys())} # {bm25_id: faiss_id}
             bm25 = BM25Okapi(tokenized_corpus, k1=1.5, b=0.75)
-            scores = bm25.get_scores(re.findall(r"\w+", (query_text or "").lower()))
-            top_bmid = sorted(range(len(scores)), key=lambda bmid: scores[bmid], reverse=True)[:limit]
+            bm25_scores = bm25.get_scores(re.findall(r"\w+", (query_text or "").lower()))
+            top_bmid = sorted(range(len(bm25_scores)), key=lambda bmid: bm25_scores[bmid], reverse=True)[:limit]
+
             for bmid in top_bmid:
-                fid = bmidmap2fid[bmid]
+                fid = idmap2fid[bmid]
                 if fid == -1:
                     continue
                 md = self.meta.get(int(fid), {})
@@ -143,11 +145,31 @@ class FaissVectorStore(VectorStore):
                     ok = all(md.get(k2) == v2 for k2, v2 in filters.items())
                     if not ok:
                         continue
-                results.append((float(scores[bmid]), md))
+                results.append((float(bm25_scores[bmid]), md))
         
         elif method == "overlapping":
-            # TODO: implement overlapping method
-            pass
+            corpus = [record.summary for record in self.meta.values()]
+            idmap2fid = {olid: fid for olid, fid in enumerate(self.fidmap2mid.keys())} # {overlapping_id: faiss_id}
+
+            overlap_scores = []
+            query_tokens = re.findall(r"\w+", (query_text or "").lower())
+
+            for doc in corpus:
+                overlap_score = sum(1 for token in query_tokens if token in doc.lower())
+                base_score = overlap_score / max(len(query_tokens), 1)
+                overlap_scores.append(base_score)
+            
+            top_olid = sorted(range(len(overlap_scores)), key= lambda olid: overlap_scores[olid], reverse=True)[:limit]
+            for olid in top_olid:
+                fid = idmap2fid[olid]
+                if fid == -1:
+                    continue
+                md = self.meta.get(int(fid), {})
+                if filters:
+                    ok = all(md.get(k2) == v2 for k2, v2 in filters.items())
+                    if not ok:
+                        continue
+                results.append((float(overlap_scores[olid]), md))
 
         return results
     
