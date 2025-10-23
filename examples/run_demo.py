@@ -18,6 +18,9 @@ def main() -> None:
     data_root = os.path.join(os.path.dirname(os.path.dirname(__file__)), "memory_data")
     if os.path.isdir(data_root):
         shutil.rmtree(data_root)
+    
+    log_file = open("test_output.log", "a")
+    sys.stdout = log_file
 
     print('''--------------------Init test--------------------''')
     semantic_memory_store = FAISSMemorySystem(
@@ -80,7 +83,6 @@ def main() -> None:
         tags=("augmentation", "robustness"),
         confidence=0.6,
     )
-    print(semantic_memory_store.add([new_sem_rec]))
     print(f"SemanticRecord batch-processing test: {semantic_memory_store.batch_memory_process([sem_rec, new_sem_rec])}")
 
     print('''--------------------Memory query(embedding) test--------------------''')
@@ -88,7 +90,11 @@ def main() -> None:
     print(f"SemanticRecord query test results: {[{'score': r[0], 'record': r[1].to_dict()} for r in results]}")
 
     print('''--------------------Memory query(bm25) test--------------------''')
-    results = semantic_memory_store.query("augmentations robustness weather", method="bm25" ,limit=2)
+    results = semantic_memory_store.query("augmentations weather", method="bm25" ,limit=2)
+    print(f"SemanticRecord query test results: {[{'score': r[0], 'record': r[1].to_dict()} for r in results]}")
+
+    print('''--------------------Memory query(overlapping) test--------------------''')
+    results = semantic_memory_store.query("augmentations weather", method="overlapping" ,limit=2)
     print(f"SemanticRecord query test results: {[{'score': r[0], 'record': r[1].to_dict()} for r in results]}")
 
     print('''--------------------Memory size test--------------------''')
@@ -123,6 +129,7 @@ def main() -> None:
     print(episodic_memory_store.get_last_k_records(1))
     print(episodic_memory_store.get_last_k_records(100))
 
+    log_file.close()
 
 if __name__ == "__main__":
     main()
