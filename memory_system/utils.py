@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from uuid import uuid4
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, Tuple, Any
 
-import json
+import json, re
 import numpy as np
 
 
@@ -61,3 +61,18 @@ def dump_slot_json(slot) -> str:
         "tags": slot.tags
     }
     return json.dumps(payload, ensure_ascii=False)
+
+def _extract_json_between(text: str, open_tag: str, close_tag: str) -> Dict[str, Any]:
+    m = re.search(rf"<{re.escape(open_tag)}>\s*(\{{.*\}})\s*</{re.escape(close_tag)}>", text, flags=re.S)
+    if not m:
+        raise ValueError(f"Missing <{open_tag}> JSON block.")
+    try:
+        return json.loads(m.group(1))
+    except Exception as e:
+        raise ValueError(f"Failed to parse JSON: {e}")
+
+def _hard_validate_slot_keys(payload: Dict[str, Any], allowed_keys: Iterable[str]) -> None:
+    extra = set(payload.keys()) - allowed_keys
+    if extra:
+        raise ValueError(f"Unexpected keys in slot payload: {extra}")
+    

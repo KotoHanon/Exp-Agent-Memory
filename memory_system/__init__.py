@@ -4,6 +4,7 @@ from .semantic_store import SemanticMemory
 from .retrieval import MemoryRetriever
 from .vectorstore import FaissVectorStore
 from .models import SemanticRecord, EpisodicRecord, ProceduralRecord
+from .working_slot import WorkingSlot, DummyLLM, LLMClient
 
 __all__ = [
     "WorkingMemory",
@@ -14,4 +15,7 @@ __all__ = [
     "SemanticRecord",
     "EpisodicRecord",
     "ProceduralRecord",
+    "WorkingSlot",
+    "DummyLLM",
+    "LLMClient",
 ]

@@ -120,4 +120,6 @@ Only output a string, either "semantic", "procedural", or "episodic".
 </slot-dump>
 """
         out = llm.complete(system_prompt, user_prompt)
+        if out.strip() not in ["semantic", "procedural", "episodic"]:
+            raise ValueError(f"Invalid slot type: {out}")
         return out
