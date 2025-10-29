@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Iterable, Optional, Tuple
 
+import json
 import numpy as np
 
 
@@ -49,3 +50,14 @@ def _jsonable_meta(meta: dict) -> dict:
     for k, v in meta.items():
         output[k] = v.to_dict()
     return output
+
+def dump_slot_json(slot) -> str:
+    payload = {
+        "id": slot.id,
+        "stage": slot.stage
+        "topic": slot.topic,
+        "summary": slot.summary,
+        "attachments": slot.attachments,
+        "tags": slot.tags
+    }
+    return json.dumps(payload, ensure_ascii=False)

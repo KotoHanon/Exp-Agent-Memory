@@ -120,7 +120,7 @@ class FAISSMemorySystem(MemorySystem):
         except Exception as e:
             print(f"Error updating memories: {e}")
             return False
-        # TODO: working/procedural memory system 
+        # TODO: working memory system 
 
     def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = None) -> bool:
         '''If you can not distinguish memories need to be add or update, use this method.'''
