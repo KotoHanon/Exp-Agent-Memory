@@ -1,4 +1,4 @@
-from memory_system import WorkingSlot, DummyLLM, LLMClient
+from memory_system import WorkingSlot, OpenAIClient, LLMClient
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 from collections import deque
 from memory_system.utils import dump_slot_json, _extract_json_between, _hard_validate_slot_keys
@@ -10,7 +10,7 @@ class SlotProcess:
         self.slot_queue: deque[WorkingSlot] = deque(maxlen=queue_size)
         self.filtered_slot_queue: deque[WorkingSlot] = deque(maxlen=queue_size)
         self.routed_slot_queue: deque[Dict[str, WorkingSlot]] = deque(maxlen=queue_size)
-        self.llm_model = DummyLLM()
+        self.llm_model = OpenAIClient()
 
     def add_slot(self, slot: WorkingSlot) -> None:
         self.slot_queue.append(slot)
@@ -160,4 +160,3 @@ class SlotProcess:
 
         text = self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
         return text
-
