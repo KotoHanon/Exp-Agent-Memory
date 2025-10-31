@@ -35,19 +35,7 @@ class OpenAIClient:
             max_output_tokens=max_tokens,
             temperature=temperature,
         )
-        if getattr(response, "output_text", None):
-            return response.output_text
-
-        chunks: List[str] = []
-        for item in getattr(response, "output", []) or []:
-            if getattr(item, "type", None) == "output_text":
-                chunks.append(getattr(item, "text", ""))
-            elif getattr(item, "content", None):
-                # Fallback for older SDK payloads
-                for part in item.content:
-                    if part.get("type") == "output_text":
-                        chunks.append(part.get("text", ""))
-        return "".join(chunks)
+        return response.output_text
 
 class SlotPayload(BaseModel):
     id: str = Field(default_factory=lambda: new_id("work"))

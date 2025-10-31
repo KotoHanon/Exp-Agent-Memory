@@ -141,11 +141,9 @@ class SlotProcess:
 
                         Input WorkingSlot (JSON):
 
-                        <slot>
                         {dump_slot_json(slot)}
-                        </slot>
 
-                        Output format (plain text wrapped by tags):
+                        Output format: A plain text, WITHOUT ANY WRAPTAG.
                         [Your concise text summary here]
 
                         SUMMARY GUIDELINES:
