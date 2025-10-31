@@ -16,10 +16,14 @@ class SlotProcess:
     
     def clear_queue(self) -> None:
         self.slot_queue.clear()
+
+    def get_queue_size(self) -> int:
+        return len(self.slot_queue)
     
-    def filter_and_route_slot(self) -> deque[Dict[str, WorkingSlot]]:
+    def filter_and_route_slots(self) -> deque[Dict[str, WorkingSlot]]:
         for slot in self.slot_queue:
             check_result = slot.slot_filter(self.llm_model)
+            print(check_result)
             if check_result == True:
                 self.filtered_slot_queue.append(slot)
         
@@ -127,3 +131,4 @@ OTHER RULES:
     
     def transfer_slot_to_text(self, slot: WorkingSlot) -> str:
         # TODO: Implement slot to text transfer logic
+        pass

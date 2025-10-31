@@ -1,9 +1,9 @@
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union, Protocol
-
 from .models import WorkingSnapshot
 from .utils import new_id, dump_slot_json
-
 from pydantic import BaseModel, Field, field_validator, validate_call
+
+import re, json
 
 '''Dummy LLM for debugging'''
 class LLMClient(Protocol):
@@ -13,8 +13,8 @@ class LLMClient(Protocol):
         user_prompt: str,
         max_tokens: int = 512,
         temperature: float = 0.0,
-    ) -> str:
-    ...
+        ) -> str:
+        ...
 
 class DummyLLM:
     def complete(self,
@@ -35,16 +35,20 @@ class DummyLLM:
         has_metric = bool(slot.get("attachments", {}).get("metrics"))
         has_code = bool(slot.get("attachments", {}).get("code"))
         # Decide which tool prompt was asked by sniffing keywords
-        if '"brief"' in user_prompt and '"keywords"' in user_prompt:
+        if "access" in system_prompt.lower():
+            decision = "yes" if slot.get("attachments").get("result").get("filter") == True else "no"
+            return decision
+
+        if "brief" in user_prompt and '"keywords"' in user_prompt:
             brief = summary[:200] or f"{topic} update."
             out = {"brief": brief, "topic": topic, "keywords": list({w for w in re.findall(r"[A-Za-z0-9_]+", brief) if len(w) > 2})[:6]}
             return json.dumps(out, ensure_ascii=False)
 
-        if '"type"' in user_prompt:
+        if "type" in system_prompt:
             t = "episodic" if has_metric else ("procedural" if has_code else "semantic")
             return t
 
-        if '"cards"' in user_prompt:
+        if "cards" in user_prompt:
             cards = []
             if has_metric:
                 m0 = slot["attachments"]["metrics"][0]
@@ -58,18 +62,19 @@ class DummyLLM:
                 cards = [{"kind": "fact", "stmt": f"{topic} update."}]
             return json.dumps({"cards": cards[:3]}, ensure_ascii=False)
 
-        if '"keywords"' in user_prompt and "retrieve" in user_prompt:
+        if "keywords" in user_prompt and "retrieve" in user_prompt:
             words = list({w.lower() for w in re.findall(r"[A-Za-z0-9_]+", (summary or topic)) if len(w) > 2})
             return json.dumps({"keywords": words[:6] or [topic]}, ensure_ascii=False)
 
         return "{}"
 
 class SlotPayload(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("work"))
     stage: str = Field("", description="Stage of the working.")
     topic: str = Field("", description="Topic of the working slot.")
     summary: str = Field("", description="Summary of the working slot.")
     attachments: Dict[str, Dict] = Field(
-        default_factory=list,
+        default_factory=dict,
         description="List of attachment identifiers associated with the slot.",
     )
     tags: List[str] = Field(
@@ -78,17 +83,15 @@ class SlotPayload(BaseModel):
     )
 
 class WorkingSlot(SlotPayload):
-    """Transient context tied to the currently executing experiment."""
-
-    def __init__(self, **kwargs) -> None:
-        cfg = SlotPayload(**kwargs)
-
-        self.id = new_id("work")
-        self.stage = cfg.stage
-        self.topic = cfg.topic
-        self.summary = cfg.summary
-        self.attachments = cfg.attachments
-        self.tags = cfg.tags
+    def to_dict(self) -> Dict:
+        return {
+            "id": self.id,
+            "stage": self.stage,
+            "topic": self.topic,
+            "summary": self.summary,
+            "attachments": self.attachments,
+            "tags": self.tags,
+        }
     
     def slot_filter(self, llm: LLMClient) -> bool:
         system_prompt = "You are a memory access reviewer. Only output 'yes' or 'no'."
@@ -101,6 +104,7 @@ Evaluation dimensions: novelty (new information), utility (reusable value), stab
 </slot-dump>
 """
         out = llm.complete(system_prompt, user_prompt)
+        print(f"Slot filter output: {out}")
         return True if out.strip().lower() == "yes" else False
     
     def slot_router(self, llm: LLMClient) -> Literal["semantic", "procedural", "episodic"]:

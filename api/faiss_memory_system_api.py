@@ -9,16 +9,14 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from memory_system import (
     EpisodicMemory,
-    MemoryRetriever,
     SemanticMemory,
-    WorkingMemory,
     FaissVectorStore,
     SemanticRecord,
     EpisodicRecord,
     ProceduralRecord,
 )
 from memory_system.utils import now_iso, new_id
-from base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
+from .base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
 
 class FAISSMemorySystem(MemorySystem):
     def __init__(self, **kwargs):

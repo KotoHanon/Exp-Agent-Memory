@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from uuid import uuid4
-from typing import Iterable, Optional, Tuple, Any
+from typing import Iterable, Optional, Tuple, Any, Dict
 
 import json, re
 import numpy as np
@@ -54,7 +54,7 @@ def _jsonable_meta(meta: dict) -> dict:
 def dump_slot_json(slot) -> str:
     payload = {
         "id": slot.id,
-        "stage": slot.stage
+        "stage": slot.stage,
         "topic": slot.topic,
         "summary": slot.summary,
         "attachments": slot.attachments,

@@ -4,14 +4,13 @@ from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 from memory_system import (
     EpisodicMemory,
-    MemoryRetriever,
     SemanticMemory,
-    WorkingMemory,
     FaissVectorStore,
     SemanticRecord,
     EpisodicRecord,
     ProceduralRecord,
 )
+
 
 class MemorySystemConfig(BaseModel):
     memory_type: Literal["semantic", "episodic", "procedural", "working"] = "semantic"

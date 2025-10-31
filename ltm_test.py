@@ -1,25 +1,16 @@
 import os
 import shutil
 import sys
-from faiss_memory_system_api import FAISSMemorySystem
+from api.faiss_memory_system_api import FAISSMemorySystem
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from memory_system import (
-    EpisodicMemory,
-    MemoryRetriever,
-    SemanticMemory,
-    WorkingMemory,
-    FaissVectorStore,
-)
+from memory_system import FaissVectorStore
+
 
 
 def main() -> None:
-    data_root = os.path.join(os.path.dirname(os.path.dirname(__file__)), "memory_data")
-    if os.path.isdir(data_root):
-        shutil.rmtree(data_root)
-    
-    log_file = open("test_output.log", "a")
+    log_file = open("ltm_test_output.log", "w")
     sys.stdout = log_file
 
     print('''--------------------Init test--------------------''')
