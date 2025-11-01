@@ -47,7 +47,6 @@ class FAISSMemorySystem(MemorySystem):
             stage=cfg.stage,
             summary=cfg.summary,
             detail=cfg.detail,
-            metrics=cfg.metrics,
             tags=cfg.tags,
             created_at=now_iso(),
         )        

@@ -10,7 +10,6 @@ class EpisodicRecord(object):
         stage: str, 
         summary: str, 
         detail: Dict[str, Any], 
-        metrics: Optional[Dict[str, Any]] = None, 
         tags: Optional[Iterable[str]] = None,  
         created_at: str = "", 
     ):
@@ -19,7 +18,6 @@ class EpisodicRecord(object):
         self.stage = stage
         self.summary = summary
         self.detail = detail or {}
-        self.metrics = metrics or {}
         self.tags = tags or []
         self.created_at = created_at
 
@@ -159,31 +157,4 @@ class ProceduralRecord(object):
             created_at=payload.get("created_at", ""),
             updated_at=payload.get("updated_at", ""),
         )
-
-
-class WorkingSnapshot(object):
-    def __init__(
-        self,
-        goal=None,  # type: Optional[str]
-        hypotheses=None,  # type: Optional[List[str]]
-        plan_steps=None,  # type: Optional[List[str]]
-        active_tools=None,  # type: Optional[List[str]]
-        scratchpad=None,  # type: Optional[Dict[str, Any]]
-    ):
-        self.goal = goal
-        self.hypotheses = hypotheses or []
-        self.plan_steps = plan_steps or []
-        self.active_tools = active_tools or []
-        self.scratchpad = scratchpad or {}
-
-    def to_dict(self):
-        # type: () -> Dict[str, Any]
-        return {
-            "goal": self.goal,
-            "hypotheses": list(self.hypotheses),
-            "plan_steps": list(self.plan_steps),
-            "active_tools": list(self.active_tools),
-            "scratchpad": dict(self.scratchpad),
-        }
-
     

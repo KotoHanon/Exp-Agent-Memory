@@ -27,7 +27,6 @@ class MemoryRecordPayload(BaseModel):
     idea_id: str = Field("", description="Unique identifier for the idea.")
     source_ids: Optional[List[str]] = Field(None, description="List of source IDs related to the memory.")
     tags: Optional[Iterable[str]] = Field(None, description="Tags associated with the memory.")
-    metrics: Optional[dict] = Field(None, description="Metrics used for experiment.")
     confidence: float = Field(0.0, description="Confidence score of the memory.")
 
 class MemorySystem(ABC):
