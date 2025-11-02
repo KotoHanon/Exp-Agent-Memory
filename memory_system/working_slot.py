@@ -1,11 +1,12 @@
+import asyncio
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union, Protocol
-from .models import WorkingSnapshot
 from .utils import new_id, dump_slot_json
 from pydantic import BaseModel, Field, field_validator, validate_call
 from openai import OpenAI
+from textwrap import dedent
 
 class LLMClient(Protocol):
-    def complete(
+    async def complete(
         self,
         system_prompt: str,
         user_prompt: str,
@@ -19,23 +20,57 @@ class OpenAIClient:
         self._client = client or OpenAI()
         self._model = model
 
-    def complete(
+    async def complete(
         self,
         system_prompt: str,
         user_prompt: str,
         max_tokens: int = 512,
         temperature: float = 0.0,
     ) -> str:
-        response = self._client.responses.create(
-            model=self._model,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-        )
-        return response.output_text
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        last_error: Optional[Exception] = None
+
+        try:
+            response = await asyncio.to_thread(
+                self._client.responses.create,
+                model=self._model,
+                input=messages,
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+            )
+            if hasattr(response, "output_text"):
+                return response.output_text
+        except (AttributeError, TypeError) as exc:
+            last_error = exc
+
+        try:
+            response = await asyncio.to_thread(
+                self._client.chat.completions.create,
+                model=self._model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            message = response.choices[0].message
+            return message["content"] if isinstance(message, dict) else message.content
+        except AttributeError as exc:
+            last_error = last_error or exc
+
+        try:
+            response = await asyncio.to_thread(
+                self._client.ChatCompletion.create,
+                model=self._model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return response.choices[0].message["content"]
+        except Exception as exc:
+            raise last_error or exc
 
 class SlotPayload(BaseModel):
     id: str = Field(default_factory=lambda: new_id("work"))
@@ -62,37 +97,39 @@ class WorkingSlot(SlotPayload):
             "tags": self.tags,
         }
     
-    def slot_filter(self, llm: LLMClient) -> bool:
+    async def slot_filter(self, llm: LLMClient) -> bool:
         system_prompt = "You are a memory access reviewer. Only output 'yes' or 'no'."
-        user_prompt = f"""Determine whether this slot should be converted to long-term memory (LTM).
+        user_prompt = dedent(f"""
+                        Determine whether this slot should be converted to long-term memory (LTM).
 
-Evaluation dimensions: novelty (new information), utility (reusable value), stability (whether it is not easily outdated).
+                        Evaluation dimensions: novelty (new information), utility (reusable value), stability (whether it is not easily outdated).
 
-<slot-dump>
-{dump_slot_json(self)}
-</slot-dump>
-"""
-        out = llm.complete(system_prompt, user_prompt)
+                        <slot-dump>
+                        {dump_slot_json(self)}
+                        </slot-dump>
+                    """)
+        out = await llm.complete(system_prompt, user_prompt)
         print(f"Slot filter output: {out}")
         return True if out.strip().lower() == "yes" else False
     
-    def slot_router(self, llm: LLMClient) -> Literal["semantic", "procedural", "episodic"]:
+    async def slot_router(self, llm: LLMClient) -> Literal["semantic", "procedural", "episodic"]:
         system_prompt = "You are a memory type classifier. Only output legal string."
-        user_prompt = f"""Classify this slot into one of the following categories:
+        user_prompt = dedent(f"""
+                        Classify this slot into one of the following categories:
 
--semantic: General conclusions/rules that can be reused across tasks
+                        -semantic: General conclusions/rules that can be reused across tasks
 
--episodic: A certain process (S→A→R), including indicators/results
+                        -episodic: A certain process (S→A→R), including indicators/results
 
--procedural: Practices/steps/commands/function calls that can be reused as skills
+                        -procedural: Practices/steps/commands/function calls that can be reused as skills
 
-Only output a string, either "semantic", "procedural", or "episodic".
+                        Only output a string, either "semantic", "procedural", or "episodic".
 
-<slot-dump>
-{dump_slot_json(self)}
-</slot-dump>
-"""
-        out = llm.complete(system_prompt, user_prompt)
+                        <slot-dump>
+                        {dump_slot_json(self)}
+                        </slot-dump>
+                    """)
+        out = await llm.complete(system_prompt, user_prompt)
         if out.strip() not in ["semantic", "procedural", "episodic"]:
             raise ValueError(f"Invalid slot type: {out}")
         return out

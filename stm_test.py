@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import sys
@@ -8,7 +9,7 @@ from textwrap import dedent
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-def main() -> None:
+async def main() -> None:
     log_file = open("stm_test_output.log", "w")
     sys.stdout = log_file
 
@@ -66,7 +67,7 @@ def main() -> None:
     print('''--------------------SlotProcess test: fliter and route--------------------''')
     slot_process.add_slot(trivial_working_slot)
     slot_process.add_slot(valuable_working_slot)
-    result = slot_process.filter_and_route_slots()
+    result = await slot_process.filter_and_route_slots()
     print(f"Filtered and routed slots: {len(result)}")
     if len(result) > 0:
         print(f"Memory type: {result[0].get('memory_type')}")
@@ -77,11 +78,11 @@ def main() -> None:
             
             Transfer result:
 
-            {slot_process.transfer_slot_to_text(r.get('slot'))}
+            {await slot_process.transfer_slot_to_text(r.get('slot'))}
             """))
 
 
     log_file.close()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

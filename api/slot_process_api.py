@@ -21,16 +21,16 @@ class SlotProcess:
     def get_queue_size(self) -> int:
         return len(self.slot_queue)
     
-    def filter_and_route_slots(self) -> deque[Dict[str, WorkingSlot]]:
+    async def filter_and_route_slots(self) -> deque[Dict[str, WorkingSlot]]:
         for slot in self.slot_queue:
-            check_result = slot.slot_filter(self.llm_model)
+            check_result = await slot.slot_filter(self.llm_model)
             print(check_result)
             if check_result == True:
                 self.filtered_slot_queue.append(slot)
         
         try:
             for filtered_slot in self.filtered_slot_queue:
-                route_result = filtered_slot.slot_router(self.llm_model)
+                route_result = await filtered_slot.slot_router(self.llm_model)
                 pair = {
                     "memory_type": route_result,
                     "slot": filtered_slot
@@ -41,7 +41,7 @@ class SlotProcess:
         
         return self.routed_slot_queue
     
-    def compress_slots(self) -> WorkingSlot:
+    async def compress_slots(self) -> WorkingSlot:
         slot_json_blobs = []
         for idx, slot in enumerate(self.slot_queue):
             slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(slot)}")
@@ -107,7 +107,7 @@ class SlotProcess:
                         - Output STRICT JSON only, wrapped in the required tags.
                         """)
 
-        response = self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+        response = await self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
         payload = _extract_json_between(response, "compressed-slot", "compressed-slot")
         try:
             _hard_validate_slot_keys(payload, required_keys=["stage", "topic", "summary", "attachments", "tags"])
@@ -130,7 +130,7 @@ class SlotProcess:
 
         return compressed_slot
     
-    def transfer_slot_to_text(self, slot: WorkingSlot) -> str:
+    async def transfer_slot_to_text(self, slot: WorkingSlot) -> str:
         system_prompt = (
             "You are an expert assistant that converts WorkingSlot JSON data into a clear, concise text summary. "
             "Focus on key insights, important metrics, and actionable items. Output only the requested text inside the tags."
@@ -156,5 +156,5 @@ class SlotProcess:
                         - Output ONLY the text summary wrapped in the specified tags.
                         """)
 
-        text = self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+        text = await self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
         return text
