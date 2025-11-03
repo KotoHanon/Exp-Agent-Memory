@@ -5,46 +5,49 @@ from memory_system.utils import dump_slot_json, _extract_json_between, _hard_val
 from textwrap import dedent
 
 class SlotProcess:
-    def __init__(self, queue_size: int = 10):
-        self.queue_size = queue_size
-        self.slot_queue: deque[WorkingSlot] = deque(maxlen=queue_size)
-        self.filtered_slot_queue: deque[WorkingSlot] = deque(maxlen=queue_size)
-        self.routed_slot_queue: deque[Dict[str, WorkingSlot]] = deque(maxlen=queue_size)
+    def __init__(self):
+        self.slot_container: Dict[str, WorkingSlot] = {}
+        self.filtered_slot_container: List[WorkingSlot] = []
+        self.routed_slot_container: List[Dict] = []
         self.llm_model = OpenAIClient()
 
     def add_slot(self, slot: WorkingSlot) -> None:
-        self.slot_queue.append(slot)
+        self.slot_container[slot.to_dict().get('id')] = slot
     
-    def clear_queue(self) -> None:
-        self.slot_queue.clear()
+    def clear_container(self) -> None:
+        self.slot_container = {}
 
-    def get_queue_size(self) -> int:
-        return len(self.slot_queue)
+    def get_container_size(self) -> int:
+        return len(self.slot_container)
     
     async def filter_and_route_slots(self) -> deque[Dict[str, WorkingSlot]]:
-        for slot in self.slot_queue:
+        for slot in self.slot_container.values():
             check_result = await slot.slot_filter(self.llm_model)
             print(check_result)
             if check_result == True:
-                self.filtered_slot_queue.append(slot)
+                self.filtered_slot_container.append(slot)
         
         try:
-            for filtered_slot in self.filtered_slot_queue:
+            for filtered_slot in self.filtered_slot_container:
                 route_result = await filtered_slot.slot_router(self.llm_model)
                 pair = {
                     "memory_type": route_result,
                     "slot": filtered_slot
                 }
-                self.routed_slot_queue.append(pair)
+                self.routed_slot_container.append(pair)
         except Exception as e:
             print(f"Routing error: {e}")
         
-        return self.routed_slot_queue
+        return self.routed_slot_container
     
-    async def compress_slots(self) -> WorkingSlot:
+    async def compress_slots(self, ids: List[str] = None) -> WorkingSlot:
         slot_json_blobs = []
-        for idx, slot in enumerate(self.slot_queue):
-            slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(slot)}")
+        if ids is None:
+            for idx, slot in enumerate(self.slot_container.values()):
+                slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(slot)}")
+        else:
+            for idx, slot_id in enumerate(ids):
+                slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(self.slot_container[slot_id])}")
         slots_block = "\n\n".join(slot_json_blobs)
 
         system_prompt = (
@@ -73,16 +76,16 @@ class SlotProcess:
                         Output format (STRICTLY JSON wrapped by tags; ONLY these keys: stage, topic, summary, attachments, tags):
                         <compressed-slot>
                         {{
-                        "stage": "compressed",                       // fixed literal
-                        "topic": "a short topic slug",
-                        "summary": "≤150-word compact synthesis",
+                        "stage": "compressed",                      // str
+                        "topic": "a short topic slug",              // str
+                        "summary": "≤150-word compact synthesis",   // str
                         "attachments": {{                           // dict[str, dict]; aggregate from inputs (do not invent)
                             "notes": {{"items": ["bullet1", "bullet2"]}},
                             "metrics": {{"acc": 0.91}},               // include only if present in inputs; do NOT fabricate
                             "procedures": {{"steps": ["step1", "step2"]}},
                             "sources": {{"ids": ["src1","src2"]}}
                         }},
-                        "tags": ["tag1","tag2","tag3"]
+                        "tags": ["tag1","tag2","tag3"]              // List[str]
                         }}
                         </compressed-slot>
 
@@ -94,23 +97,23 @@ class SlotProcess:
 
                         ATTACHMENT NORMALIZATION RULES:
                         - If an input attachment value is an object → shallow-merge objects across slots (later evidence refines earlier).
-                        - If an input attachment value is an array → output {"items": [...]} (deduplicated, concise).
-                        - If an input attachment value is a scalar (string/number/bool) → output {"value": <scalar>}.
+                        - If an input attachment value is an array → output {{"items": [...]}} (deduplicated, concise).
+                        - If an input attachment value is a scalar (string/number/bool) → output {{"value": <scalar>}}.
                         - If multiple scalar values conflict → prefer the most recent slot; if unclear, pick the most conservative or omit.
                         - Numeric metrics MUST come only from inputs (no fabrication). If present under different keys, keep each under its original key.
 
                         OTHER RULES:
                         - summary ≤ 150 words, factual, reusable, and stable (avoid ephemeral details).
-                        - tags is a short, relevant list (≤ 10), deduplicated.
-                        - stage MUST be "compressed".
+                        - tags is a short, relevant LIST (≤ 10), deduplicated.
                         - Do NOT include any other top-level keys. Do NOT output nulls; omit missing fields inside attachments instead.
                         - Output STRICT JSON only, wrapped in the required tags.
                         """)
 
         response = await self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
         payload = _extract_json_between(response, "compressed-slot", "compressed-slot")
+        print(f"Compressed slot payload: {payload}")
         try:
-            _hard_validate_slot_keys(payload, required_keys=["stage", "topic", "summary", "attachments", "tags"])
+            _hard_validate_slot_keys(payload, allowed_keys={"stage", "topic", "summary", "attachments", "tags"})
         except Exception as e:
             raise ValueError(f"Compressed slot validation error: {e}")
         

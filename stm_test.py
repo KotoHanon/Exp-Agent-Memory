@@ -58,11 +58,11 @@ async def main() -> None:
     slot_process = SlotProcess()
     slot_process.add_slot(trivial_working_slot)
     slot_process.add_slot(valuable_working_slot)
-    print(f"Slot queue size: {slot_process.get_queue_size()}")
+    print(f"Slot container size: {slot_process.get_container_size()}")
 
     print('''--------------------SlotProcess test: clear--------------------''')
-    slot_process.clear_queue()
-    print(f"Slot queue size after clear: {slot_process.get_queue_size()}")
+    slot_process.clear_container()
+    print(f"Slot container size after clear: {slot_process.get_container_size()}")
 
     print('''--------------------SlotProcess test: fliter and route--------------------''')
     slot_process.add_slot(trivial_working_slot)
@@ -73,13 +73,18 @@ async def main() -> None:
         print(f"Memory type: {result[0].get('memory_type')}")
 
         print('''--------------------SlotProcess test: transfer--------------------''')
-        for r in result:
+        coros = [slot_process.transfer_slot_to_text(r.get('slot')) for r in result]
+        texts = await asyncio.gather(*coros)
+        for text in texts:
             print(dedent(f"""
-            
-            Transfer result:
+                Transferred slot to text:
 
-            {await slot_process.transfer_slot_to_text(r.get('slot'))}
+                {text}
             """))
+        
+        print('''--------------------SlotProcess test: compress--------------------''')
+        compressed_slot = await slot_process.compress_slots()
+        print(f"Compressed slot: {compressed_slot.to_dict()}")
 
 
     log_file.close()
