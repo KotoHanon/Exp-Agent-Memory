@@ -40,13 +40,13 @@ class SlotProcess:
         
         return self.routed_slot_container
     
-    async def compress_slots(self, ids: List[str] = None) -> WorkingSlot:
+    async def compress_slots(self, sids: List[str] = None) -> WorkingSlot:
         slot_json_blobs = []
-        if ids is None:
+        if sids is None:
             for idx, slot in enumerate(self.slot_container.values()):
                 slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(slot)}")
         else:
-            for idx, slot_id in enumerate(ids):
+            for idx, slot_id in enumerate(sids):
                 slot_json_blobs.append(f"### Slot {idx}\n{dump_slot_json(self.slot_container[slot_id])}")
         slots_block = "\n\n".join(slot_json_blobs)
 

@@ -109,7 +109,10 @@ class WorkingSlot(SlotPayload):
                         </slot-dump>
                     """)
         out = await llm.complete(system_prompt, user_prompt)
-        print(f"Slot filter output: {out}")
+
+        if out.strip().lower() not in ["yes", "no"]:
+            raise ValueError(f"Invalid slot filter output: {out}")
+
         return True if out.strip().lower() == "yes" else False
     
     async def slot_router(self, llm: LLMClient) -> Literal["semantic", "procedural", "episodic"]:
