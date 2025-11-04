@@ -2,6 +2,7 @@ from memory_system import WorkingSlot, OpenAIClient, LLMClient
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 from collections import deque
 from memory_system.utils import dump_slot_json, _extract_json_between, _hard_validate_slot_keys
+from memory_system.user_prompt import WORKING_SLOT_COMPRESS_USER_PROMPT
 from textwrap import dedent
 
 class SlotProcess:
@@ -56,58 +57,7 @@ class SlotProcess:
             "that preserves non-redundant, reusable knowledge while discarding noise. "
             "Be precise, consistent, and avoid hallucinations. Output only the requested JSON inside the tags."
         )
-
-        user_prompt = dedent(f"""
-                        Read the following WorkingSlots and compress them into ONE consolidated WorkingSlot.
-
-                        Your goals:
-                        - Deduplicate overlapping content while keeping key facts.
-                        - Prefer information that is novel, useful across tasks, and stable (unlikely to expire soon).
-                        - Preserve crucial metrics, decisions, and actionable steps when available.
-                        - Resolve contradictions conservatively; if uncertain, prefer safer, broadly valid statements.
-                        - Keep the final summary ≤ 150 words, concise and specific.
-
-                        Input WorkingSlots (JSON):
-
-                        <slots>
-                        {slots_block}
-                        </slots>
-
-                        Output format (STRICTLY JSON wrapped by tags; ONLY these keys: stage, topic, summary, attachments, tags):
-                        <compressed-slot>
-                        {{
-                        "stage": "compressed",                      // str
-                        "topic": "a short topic slug",              // str
-                        "summary": "≤150-word compact synthesis",   // str
-                        "attachments": {{                           // dict[str, dict]; aggregate from inputs (do not invent)
-                            "notes": {{"items": ["bullet1", "bullet2"]}},
-                            "metrics": {{"acc": 0.91}},               // include only if present in inputs; do NOT fabricate
-                            "procedures": {{"steps": ["step1", "step2"]}},
-                            "sources": {{"ids": ["src1","src2"]}}
-                        }},
-                        "tags": ["tag1","tag2","tag3"]              // List[str]
-                        }}
-                        </compressed-slot>
-
-                        STRICT CONTRACT:
-                        - Top-level keys MUST be exactly: stage, topic, summary, attachments, tags.
-                        - attachments MUST be a JSON object (dictionary).
-                        - Attachment KEYS are not fixed; include ONLY keys that appear in the inputs (the union of observed keys). Do NOT invent new keys.
-                        - For every attachment entry, the VALUE MUST be a JSON object (dictionary). Never output scalars or arrays at this level.
-
-                        ATTACHMENT NORMALIZATION RULES:
-                        - If an input attachment value is an object → shallow-merge objects across slots (later evidence refines earlier).
-                        - If an input attachment value is an array → output {{"items": [...]}} (deduplicated, concise).
-                        - If an input attachment value is a scalar (string/number/bool) → output {{"value": <scalar>}}.
-                        - If multiple scalar values conflict → prefer the most recent slot; if unclear, pick the most conservative or omit.
-                        - Numeric metrics MUST come only from inputs (no fabrication). If present under different keys, keep each under its original key.
-
-                        OTHER RULES:
-                        - summary ≤ 150 words, factual, reusable, and stable (avoid ephemeral details).
-                        - tags is a short, relevant LIST (≤ 10), deduplicated.
-                        - Do NOT include any other top-level keys. Do NOT output nulls; omit missing fields inside attachments instead.
-                        - Output STRICT JSON only, wrapped in the required tags.
-                        """)
+        user_prompt = WORKING_SLOT_COMPRESS_USER_PROMPT.format(slots_block=slots_block)
 
         response = await self.llm_model.complete(system_prompt=system_prompt, user_prompt=user_prompt)
         payload = _extract_json_between(response, "compressed-slot", "compressed-slot")

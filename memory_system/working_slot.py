@@ -1,9 +1,11 @@
 import asyncio
+
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union, Protocol
 from .utils import new_id, dump_slot_json
 from pydantic import BaseModel, Field, field_validator, validate_call
 from openai import OpenAI
 from textwrap import dedent
+from .user_prompt import WORKING_SLOT_FILTER_USER_PROMPT, WORKING_SLOT_ROUTE_USER_PROMPT
 
 class LLMClient(Protocol):
     async def complete(
@@ -99,15 +101,7 @@ class WorkingSlot(SlotPayload):
     
     async def slot_filter(self, llm: LLMClient) -> bool:
         system_prompt = "You are a memory access reviewer. Only output 'yes' or 'no'."
-        user_prompt = dedent(f"""
-                        Determine whether this slot should be converted to long-term memory (LTM).
-
-                        Evaluation dimensions: novelty (new information), utility (reusable value), stability (whether it is not easily outdated).
-
-                        <slot-dump>
-                        {dump_slot_json(self)}
-                        </slot-dump>
-                    """)
+        user_prompt = WORKING_SLOT_FILTER_USER_PROMPT.format(slot_dump=dump_slot_json(self))
         out = await llm.complete(system_prompt, user_prompt)
 
         if out.strip().lower() not in ["yes", "no"]:
@@ -117,21 +111,7 @@ class WorkingSlot(SlotPayload):
     
     async def slot_router(self, llm: LLMClient) -> Literal["semantic", "procedural", "episodic"]:
         system_prompt = "You are a memory type classifier. Only output legal string."
-        user_prompt = dedent(f"""
-                        Classify this slot into one of the following categories:
-
-                        -semantic: General conclusions/rules that can be reused across tasks
-
-                        -episodic: A certain process (S→A→R), including indicators/results
-
-                        -procedural: Practices/steps/commands/function calls that can be reused as skills
-
-                        Only output a string, either "semantic", "procedural", or "episodic".
-
-                        <slot-dump>
-                        {dump_slot_json(self)}
-                        </slot-dump>
-                    """)
+        user_prompt = WORKING_SLOT_ROUTE_USER_PROMPT.format(slot_dump=dump_slot_json(self))
         out = await llm.complete(system_prompt, user_prompt)
         if out.strip() not in ["semantic", "procedural", "episodic"]:
             raise ValueError(f"Invalid slot type: {out}")
