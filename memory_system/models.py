@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any, Dict, List, Optional, Iterable
 from .utils import now_iso
 
@@ -35,7 +36,7 @@ class EpisodicRecord(object):
         }
     
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]):
+    def from_dict(cls, payload: Dict[str, Any]) -> EpisodicRecord:
         return cls(
             id=payload.get("id", ""),
             idea_id=payload.get("idea_id", ""),
@@ -99,7 +100,7 @@ class SemanticRecord(object):
         
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]):
+    def from_dict(cls, payload: Dict[str, Any]) -> SemanticRecord:
         return cls(
             id=payload.get("id", ""),
             summary=payload.get("summary", ""),
@@ -146,7 +147,7 @@ class ProceduralRecord(object):
         }
     
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]):
+    def from_dict(cls, payload: Dict[str, Any]) -> ProceduralRecord:
         return cls(
             id=payload.get("id", ""),
             name=payload.get("name", ""),

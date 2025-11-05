@@ -10,9 +10,12 @@ from memory_system import (
     SemanticRecord,
     EpisodicRecord,
     ProceduralRecord,
+    OpenAIClient,
 )
 from memory_system.utils import now_iso, new_id, _transfer_dict_to_semantic_text
+from memory_system.denstream import DenStream
 from .base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
+from collections import defaultdicts
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -22,6 +25,7 @@ class FAISSMemorySystem(MemorySystem):
 
         self.memory_type = cfg.memory_type
         self.vector_store = FaissVectorStore(cfg.model_path)
+        self.llm = OpenAIClient(model_name=cfg.llm_name)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
         cfg = MemoryRecordPayload(**kwargs)
@@ -37,7 +41,7 @@ class FAISSMemorySystem(MemorySystem):
         )
         return record
     
-    def instantiate_epi_record(self, **kwargs) -> EpisodicRecord:
+    def instantiate_epi_record(self, eps: float = 0.6, beta: float = 0.5, mu: float = 4, **kwargs) -> EpisodicRecord:
         cfg = MemoryRecordPayload(**kwargs)
         record = EpisodicRecord(
             id=new_id("epi"),
@@ -48,7 +52,8 @@ class FAISSMemorySystem(MemorySystem):
             tags=cfg.tags,
             created_at=now_iso(),
         )
-        record.embedding = self.vector_store._embed(_transfer_dict_to_semantic_text(record.detail))        
+        record.embedding = self.vector_store._embed(_transfer_dict_to_semantic_text(record.detail))
+        self.cluster_machine = DenStream(eps=eps, beta=beta, mu=mu)        
         return record
 
     def instantiate_proc_record(self, **kwargs) -> ProceduralRecord:
@@ -128,6 +133,8 @@ class FAISSMemorySystem(MemorySystem):
     def delete(self, mids: List[str]) -> bool:
         try:
             self.vector_store.delete(mids)
+            if self.memory_type == "episodic":
+                self.cluster_machine = DenStream() # Reset clustering machine
             return True
         except Exception as e:
             print(f"Error deleting memories: {e}")
@@ -140,7 +147,31 @@ class FAISSMemorySystem(MemorySystem):
             print(f"Error querying memories: {e}")
             results = []
         return results
-    
+
+    async def abstract_episodic_records(
+            self, 
+            epi_records: List[EpisodicRecord], 
+            weight_threshold: float = 5.0, 
+            consistency_threshold: float = 0.8) -> List[SemanticRecord]:
+        assert self.memory_type == "episodic", "Clustering is only supported for episodic memory type."
+        cidmap2mid: Dict[int, List] = defaultdict(list) # {cluster_id: semantic_record_id}
+        result: Dict[EpisodicRecord, Dict] = {} # {EpisodicRecord: info}
+        for epi in epi_records:
+            info = denstream.process(point=epi.embedding, now=epi.created_at)
+            cidmap2mid[info['cluster_id']].append(epi.id)
+            result.update({epi: info})
+        
+        score = dict(sorted(
+            self.cluster_machine.cidmap2cluster.items(),
+            key=lambda item: item[1].avg_pairwise_cos(), 
+            reverse=True
+        ))
+
+        for cl in score.values():
+            if cl.cluster_weight >= weight_threshold and cl.avg_pairwise_cos() >= consistency_threshold:
+                # TODO: Generate semantic record for this cluster
+                sem_record_dict = self.llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+
     def save(self, path: str) -> bool:
         try:
             self.vector_store.save(path)

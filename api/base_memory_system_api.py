@@ -13,6 +13,7 @@ from memory_system import (
 class MemorySystemConfig(BaseModel):
     memory_type: Literal["semantic", "episodic", "procedural", "working"] = "semantic"
     model_path: str = Field("./.cache/all-MiniLM-L6-v2", description="Path to the model used for vector embeddings.")
+    llm_name: str = Field("gpt-4.1-mini", description="Name of the LLM model to be used.")
 
 class MemoryRecordPayload(BaseModel):
     name: str = Field("", description="Name of the ProceduralRecord.")
