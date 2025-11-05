@@ -75,4 +75,17 @@ def _hard_validate_slot_keys(payload: Dict[str, Any], allowed_keys: Iterable[str
     extra = set(payload.keys()) - allowed_keys
     if extra:
         raise ValueError(f"Unexpected keys in slot payload: {extra}")
+
+def _transfer_dict_to_semantic_text(d: Dict[str, Any], prefix: str = "") -> str:
+    lines = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            lines.append(f"{prefix}{k}:")
+            lines.append(_transfer_dict_to_semantic_text(v, prefix + " "))
+        elif isinstance(v, list):
+            joined = ", ".join(str(item) for item in v)
+            lines.append(f"{prefix}{k}: {joined}")
+        else:
+            lines.append(f"{prefix}{k}: {v}")
+    return "\n".join(lines)
     

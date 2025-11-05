@@ -1,22 +1,20 @@
 import os
 import shutil
 import sys
+
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, field_validator, validate_call
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 from memory_system import (
-    EpisodicMemory,
-    SemanticMemory,
     FaissVectorStore,
     SemanticRecord,
     EpisodicRecord,
     ProceduralRecord,
 )
-from memory_system.utils import now_iso, new_id
+from memory_system.utils import now_iso, new_id, _transfer_dict_to_semantic_text
 from .base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 class FAISSMemorySystem(MemorySystem):
     def __init__(self, **kwargs):
@@ -49,7 +47,8 @@ class FAISSMemorySystem(MemorySystem):
             detail=cfg.detail,
             tags=cfg.tags,
             created_at=now_iso(),
-        )        
+        )
+        record.embedding = self.vector_store._embed(_transfer_dict_to_semantic_text(record.detail))        
         return record
 
     def instantiate_proc_record(self, **kwargs) -> ProceduralRecord:
@@ -108,7 +107,6 @@ class FAISSMemorySystem(MemorySystem):
         except Exception as e:
             print(f"Error adding memories: {e}")
             return False
-        # TODO: working memory system 
     
     def update(self, memories: List[Union[SemanticRecord, ProceduralRecord]] = None) -> bool:
         try:
@@ -117,7 +115,6 @@ class FAISSMemorySystem(MemorySystem):
         except Exception as e:
             print(f"Error updating memories: {e}")
             return False
-        # TODO: working memory system 
 
     def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = None) -> bool:
         '''If you can not distinguish memories need to be add or update, use this method.'''

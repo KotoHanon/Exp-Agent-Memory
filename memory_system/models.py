@@ -18,6 +18,7 @@ class EpisodicRecord(object):
         self.stage = stage
         self.summary = summary
         self.detail = detail or {}
+        self.embedding = None  # to be set in the vectorstore
         self.tags = tags or []
         self.created_at = created_at
 
@@ -28,7 +29,7 @@ class EpisodicRecord(object):
             "stage": self.stage,
             "summary": self.summary,
             "detail": self.detail,
-            "metrics": self.metrics,
+            "embedding": self.embedding,
             "tags": list(self.tags),
             "created_at": self.created_at,
         }
@@ -41,7 +42,6 @@ class EpisodicRecord(object):
             stage=payload.get("stage", ""),
             summary=payload.get("summary", ""),
             detail=payload.get("detail", {}),
-            metrics=payload.get("metrics"),
             tags=payload.get("tags"),
             created_at=payload.get("created_at", ""),
         )
