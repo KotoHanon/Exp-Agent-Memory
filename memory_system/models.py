@@ -7,7 +7,6 @@ class EpisodicRecord(object):
     def __init__(
         self,
         id: str,
-        idea_id: str, 
         stage: str, 
         summary: str, 
         detail: Dict[str, Any], 
@@ -15,7 +14,6 @@ class EpisodicRecord(object):
         created_at: str = "", 
     ):
         self.id = id
-        self.idea_id = idea_id
         self.stage = stage
         self.summary = summary
         self.detail = detail or {}
@@ -26,7 +24,6 @@ class EpisodicRecord(object):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
-            "idea_id": self.idea_id,
             "stage": self.stage,
             "summary": self.summary,
             "detail": self.detail,
@@ -39,7 +36,6 @@ class EpisodicRecord(object):
     def from_dict(cls, payload: Dict[str, Any]) -> EpisodicRecord:
         return cls(
             id=payload.get("id", ""),
-            idea_id=payload.get("idea_id", ""),
             stage=payload.get("stage", ""),
             summary=payload.get("summary", ""),
             detail=payload.get("detail", {}),
@@ -54,18 +50,14 @@ class SemanticRecord(object):
         id: str, 
         summary: str,
         detail: str, 
-        source_ids: Optional[List[str]] = None,
         tags: Optional[Iterable[str]] = None,
-        confidence: float = 0.0,
         created_at: str = "", 
         updated_at: str = "",
     ):
         self.id = id
         self.summary = summary
         self.detail = detail
-        self.source_ids = source_ids or []
         self.tags = tags or []
-        self.confidence = confidence
         self.created_at = created_at
         self.updated_at = updated_at
 
@@ -74,9 +66,7 @@ class SemanticRecord(object):
             "id": self.id,
             "summary": self.summary,
             "detail": self.detail,
-            "source_ids": list(self.source_ids),
             "tags": list(self.tags),
-            "confidence": self.confidence,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

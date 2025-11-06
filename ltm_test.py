@@ -20,9 +20,7 @@ def main() -> None:
     sem_rec = semantic_memory_store.instantiate_sem_record(
         summary="Fog augmentations most beneficial when baseline lacks weather variability.",
         detail="Prioritize fog injection when training data is captured in controlled conditions.",
-        source_ids=["idea_aug_001"],
         tags=("augmentation", "robustness"),
-        confidence=0.7,
     )
     print(f"SemanticRecord instantiation result: {sem_rec.to_dict()}")
 
@@ -30,7 +28,6 @@ def main() -> None:
         memory_type="episodic",
     )
     epi_rec = episodic_memory_store.instantiate_epi_record(
-        idea_id="idea_aug_001",
         stage="execution",
         summary="Ran experiments with fog augmentations; accuracy +3%.",
         detail={"metrics": {"accuracy": 0.73}, "baseline": 0.7},
@@ -62,7 +59,6 @@ def main() -> None:
     print('''--------------------Memory update test--------------------''')
     sem_rec.update(
         detail="Updated detail: prioritize fog and rain injection.",
-        confidence=0.8,
     )
     print(f"SemanticRecord updating test: {semantic_memory_store.update([sem_rec])}")
 
@@ -70,9 +66,7 @@ def main() -> None:
     new_sem_rec = semantic_memory_store.instantiate_sem_record(
         summary="Rain augmentations also improve robustness in low-light conditions.",
         detail="Incorporate rain effects when training data is captured at night or in dim environments.",
-        source_ids=["idea_aug_001"],
         tags=("augmentation", "robustness"),
-        confidence=0.6,
     )
     print(f"SemanticRecord batch-processing test: {semantic_memory_store.batch_memory_process([sem_rec, new_sem_rec])}")
 

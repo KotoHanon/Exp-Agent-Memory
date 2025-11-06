@@ -56,3 +56,10 @@ Output format (STRICTLY JSON):
 </compressed-slot>
 """)
 
+ABSTRACT_EPISODIC_TO_SEMANTIC_PROMPT = dedent("""
+Summarize the episodic records below into a single semantic memory entry.
+Highlight enduring insights, causal links, and measurable outcomes.
+Respond with JSON containing `summary`, `detail`, `tags`.
+
+{episodic_notes}
+""")

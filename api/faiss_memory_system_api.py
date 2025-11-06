@@ -11,6 +11,7 @@ from memory_system import (
     EpisodicRecord,
     ProceduralRecord,
     OpenAIClient,
+    ABSTRACT_EPISODIC_TO_SEMANTIC_PROMPT,
 )
 from memory_system.utils import now_iso, new_id, _transfer_dict_to_semantic_text
 from memory_system.denstream import DenStream
@@ -152,13 +153,21 @@ class FAISSMemorySystem(MemorySystem):
             self, 
             epi_records: List[EpisodicRecord], 
             weight_threshold: float = 5.0, 
-            consistency_threshold: float = 0.8) -> List[SemanticRecord]:
+            consistency_threshold: float = 0.8) -> Tuple[List[SemanticRecord], Dict[int, SemanticRecord]]:
         assert self.memory_type == "episodic", "Clustering is only supported for episodic memory type."
-        cidmap2mid: Dict[int, List] = defaultdict(list) # {cluster_id: semantic_record_id}
-        result: Dict[EpisodicRecord, Dict] = {} # {EpisodicRecord: info}
+
+        cidmap2mid: Dict[int, List] = defaultdict(list) # {cluster_id: episodic_record_id}
+        midmap2record: Dict[str, EpisodicRecord] = {} # {episodic_record_id: EpisodicRecord}
+        cidmap2semrec: Dict[int, SemanticRecord] = {} # {cluster_id: SemanticRecord}
+
+        abstract_result: List[SemanticRecord] = []
+        updated_cluster_id: List[int] = []
+
         for epi in epi_records:
+            mid2record[epi.id] = epi
             info = denstream.process(point=epi.embedding, now=epi.created_at)
             cidmap2mid[info['cluster_id']].append(epi.id)
+            updated_cluster_id.append(info['cluster_id'])
             result.update({epi: info})
         
         score = dict(sorted(
@@ -167,18 +176,16 @@ class FAISSMemorySystem(MemorySystem):
             reverse=True
         ))
 
-        epi_by_id = {epi.id: epi for epi in epi_records}
-
         for cl in score.values():
-            if cl.cluster_weight >= weight_threshold and cl.avg_pairwise_cos() >= consistency_threshold:
-                system_prompt = "You are an expert at summarizing episodic memories into concise semantic records."
+            # Only abstract clusters that meet the weight and consistency thresholds, and have been updated in this batch
+            if cl.cluster_weight >= weight_threshold and cl.avg_pairwise_cos() >= consistency_threshold and cl.id in set(updated_cluster_id):
                 member_ids = cidmap2mid.get(cl.id, [])
                 if not member_ids:
                     continue
 
                 episodic_notes = []
                 for mid in member_ids:
-                    record = epi_by_id.get(mid)
+                    record = midmap2record.get(mid)
                     if not record:
                         continue
                     if isinstance(record.detail, dict):
@@ -189,11 +196,9 @@ class FAISSMemorySystem(MemorySystem):
                     episodic_notes.append(
                         "\n".join([
                             f"[EpisodicRecord {record.id}]",
-                            f"Idea: {record.idea_id}",
                             f"Stage: {record.stage}",
                             f"Summary: {record.summary}",
-                            "Detail:",
-                            detail_text,
+                            f"Detail: {detail_text},"
                             f"Tags: {tags_text}",
                         ])
                     )
@@ -201,13 +206,18 @@ class FAISSMemorySystem(MemorySystem):
                 if not episodic_notes:
                     continue
 
-                user_prompt = (
-                    "Summarize the episodic records below into a single semantic memory entry. "
-                    "Highlight enduring insights, causal links, and measurable outcomes. "
-                    "Respond with JSON containing `summary`, `detail`, `source_ids`, `tags`, and `confidence` (0-1).\n\n"
-                    + "\n\n".join(episodic_notes)
+                system_prompt = "You are an expert at summarizing episodic memories into concise semantic records."
+                user_prompt = ABSTRACT_EPISODIC_TO_SEMANTIC_PROMPT.format(
+                    episodic_notes="\n\n".join(episodic_notes)
                 )
-                sem_record_dict = await self.llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+                response = await self.llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+                sem_record_dict = json.loads(response)
+                sem_record_dict['id'] = new_id("sem")
+                sem_record = SemanticRecord.from_dict(sem_record_dict)
+                abstract_result.append(sem_record)
+                cidmap2semrec[cl.id] = sem_record
+        
+        return abstract_result, cidmap2semrec
 
     def save(self, path: str) -> bool:
         try:
