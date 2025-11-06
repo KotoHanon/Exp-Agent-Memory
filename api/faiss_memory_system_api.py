@@ -167,10 +167,47 @@ class FAISSMemorySystem(MemorySystem):
             reverse=True
         ))
 
+        epi_by_id = {epi.id: epi for epi in epi_records}
+
         for cl in score.values():
             if cl.cluster_weight >= weight_threshold and cl.avg_pairwise_cos() >= consistency_threshold:
-                # TODO: Generate semantic record for this cluster
-                sem_record_dict = self.llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+                system_prompt = "You are an expert at summarizing episodic memories into concise semantic records."
+                member_ids = cidmap2mid.get(cl.id, [])
+                if not member_ids:
+                    continue
+
+                episodic_notes = []
+                for mid in member_ids:
+                    record = epi_by_id.get(mid)
+                    if not record:
+                        continue
+                    if isinstance(record.detail, dict):
+                        detail_text = _transfer_dict_to_semantic_text(record.detail)
+                    else:
+                        detail_text = str(record.detail)
+                    tags_text = ", ".join(record.tags) if record.tags else "None"
+                    episodic_notes.append(
+                        "\n".join([
+                            f"[EpisodicRecord {record.id}]",
+                            f"Idea: {record.idea_id}",
+                            f"Stage: {record.stage}",
+                            f"Summary: {record.summary}",
+                            "Detail:",
+                            detail_text,
+                            f"Tags: {tags_text}",
+                        ])
+                    )
+
+                if not episodic_notes:
+                    continue
+
+                user_prompt = (
+                    "Summarize the episodic records below into a single semantic memory entry. "
+                    "Highlight enduring insights, causal links, and measurable outcomes. "
+                    "Respond with JSON containing `summary`, `detail`, `source_ids`, `tags`, and `confidence` (0-1).\n\n"
+                    + "\n\n".join(episodic_notes)
+                )
+                sem_record_dict = await self.llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
 
     def save(self, path: str) -> bool:
         try:
