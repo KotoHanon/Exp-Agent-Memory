@@ -22,7 +22,7 @@ class VectorStore(ABC):
         ...
 
     @abstractmethod
-    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]::
         ...
 
     @abstractmethod
@@ -38,8 +38,9 @@ class VectorStore(ABC):
         ...
 
 class FaissVectorStore(VectorStore):
-    def __init__(self, model_path: str = "./.cache/all-MiniLM-L6-v2"):
+    def __init__(self, model_path: str = "./.cache/all-MiniLM-L6-v2", memory_type: str = "semantic"):
         self.model = SentenceTransformer(os.path.join(base_dir, model_path))
+        self.memory_type = memory_type
         self.index = None
         self.dim = None
         self.meta: Dict[int, Dict] = {} # {id: SemanticRecord | EpisodicRecord | ProceduralRecord}
@@ -75,7 +76,13 @@ class FaissVectorStore(VectorStore):
             return []
         
         # check existing ids
-        texts = [raw.summary for raw in raws]
+        if isinstance(raws[0], SemanticRecord):
+            texts = [raw.detail for raw in raws]
+        elif isinstance(raws[0], EpisodicRecord):
+            texts = [raw.summary for raw in raws]
+        elif isinstance(raws[0], ProceduralRecord):
+            texts = [raw.description for raw in raws]
+
         mids = [raw.id for raw in raws]
         ids = np.arange(self._next_id, self._next_id + len(raws), dtype="int64")
         self.fidmap2mid.update({int(fid) : mid for fid, mid in zip(ids, mids)})
@@ -107,7 +114,11 @@ class FaissVectorStore(VectorStore):
         self.add(adds)
         self.update(updates)
 
-    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, 
+            query_text: str, 
+            method: str = "embedding", 
+            limit: int = 5, 
+            filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]::
         assert method in ["embedding", "bm25", "overlapping"], "Unsupported query method."
 
         if self.index is None or self.index.ntotal == 0:
@@ -128,7 +139,12 @@ class FaissVectorStore(VectorStore):
                 results.append((float(score), md))
 
         elif method == "bm25":
-            corpus = [record.summary for record in self.meta.values()]
+            if self.memory_type == "semantic":
+                corpus = [record.detail for record in self.meta.values()]
+            elif self.memory_type == "episodic":
+                corpus = [record.summary for record in self.meta.values()]
+            elif self.memory_type == "procedural":
+                corpus = [record.description for record in self.meta.values()]
             tokenized_corpus = [re.findall(r"\w+", (doc or "").lower()) for doc in corpus]
 
             idmap2fid = {bmid: fid for bmid, fid in enumerate(self.fidmap2mid.keys())} # {bm25_id: faiss_id}

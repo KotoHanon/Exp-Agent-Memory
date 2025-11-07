@@ -25,7 +25,7 @@ class FAISSMemorySystem(MemorySystem):
         cfg = MemorySystemConfig(**kwargs)
 
         self.memory_type = cfg.memory_type
-        self.vector_store = FaissVectorStore(cfg.model_path)
+        self.vector_store = FaissVectorStore(cfg.model_path, self.memory_type)
         self.llm = OpenAIClient(model_name=cfg.llm_name)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
@@ -141,7 +141,7 @@ class FAISSMemorySystem(MemorySystem):
             print(f"Error deleting memories: {e}")
             return False
     
-    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]]:
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
         try:
             results = self.vector_store.query(query_text, method=method, limit=limit, filters=filters)
         except Exception as e:
@@ -152,7 +152,6 @@ class FAISSMemorySystem(MemorySystem):
     async def abstract_episodic_records(
             self, 
             epi_records: List[EpisodicRecord], 
-            weight_threshold: float = 5.0, 
             consistency_threshold: float = 0.8) -> Tuple[List[SemanticRecord], Dict[int, SemanticRecord]]:
         assert self.memory_type == "episodic", "Clustering is only supported for episodic memory type."
 
@@ -177,8 +176,8 @@ class FAISSMemorySystem(MemorySystem):
         ))
 
         for cl in score.values():
-            # Only abstract clusters that meet the weight and consistency thresholds, and have been updated in this batch
-            if cl.cluster_weight >= weight_threshold and cl.avg_pairwise_cos() >= consistency_threshold and cl.id in set(updated_cluster_id):
+            # Only abstract clusters that meet the PMC and consistency thresholds, and have been updated in this batch
+            if cl.kind.value == "PMC" and cl.avg_pairwise_cos() >= consistency_threshold and cl.id in set(updated_cluster_id):
                 member_ids = cidmap2mid.get(cl.id, [])
                 if not member_ids:
                     continue
@@ -218,6 +217,25 @@ class FAISSMemorySystem(MemorySystem):
                 cidmap2semrec[cl.id] = sem_record
         
         return abstract_result, cidmap2semrec
+
+    def get_nearest_k_records(self, 
+            record: Union[SemanticRecord, EpisodicRecord, ProceduralRecord], 
+            method: str = "embedding", 
+            k: int = 5,
+            filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
+        if isinstance(record, SemanticRecord):
+            query_text = record.detail
+        elif isinstance(record, EpisodicRecord):
+            query_text = record.summary
+        elif isinstance(record, ProceduralRecord):
+            query_text = record.description
+        
+        try:
+            results = self.vector_store.query(query_text, method=method, limit=k, filters=filters)
+        except Exception as e:
+            print(f"Error querying nearest records: {e}")
+            results = []
+        return results
 
     def save(self, path: str) -> bool:
         try:
