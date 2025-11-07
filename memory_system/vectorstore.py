@@ -22,7 +22,7 @@ class VectorStore(ABC):
         ...
 
     @abstractmethod
-    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]::
+    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
         ...
 
     @abstractmethod
@@ -118,7 +118,7 @@ class FaissVectorStore(VectorStore):
             query_text: str, 
             method: str = "embedding", 
             limit: int = 5, 
-            filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]::
+            filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
         assert method in ["embedding", "bm25", "overlapping"], "Unsupported query method."
 
         if self.index is None or self.index.ntotal == 0:

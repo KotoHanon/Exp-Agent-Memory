@@ -16,7 +16,7 @@ from memory_system import (
 from memory_system.utils import now_iso, new_id, _transfer_dict_to_semantic_text
 from memory_system.denstream import DenStream
 from .base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
-from collections import defaultdicts
+from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -26,7 +26,7 @@ class FAISSMemorySystem(MemorySystem):
 
         self.memory_type = cfg.memory_type
         self.vector_store = FaissVectorStore(cfg.model_path, self.memory_type)
-        self.llm = OpenAIClient(model_name=cfg.llm_name)
+        self.llm = OpenAIClient(model=cfg.llm_name)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
         cfg = MemoryRecordPayload(**kwargs)
@@ -34,9 +34,7 @@ class FAISSMemorySystem(MemorySystem):
             id=new_id("sem"),
             summary=cfg.summary,
             detail=cfg.detail,
-            source_ids=cfg.source_ids,
             tags=cfg.tags,
-            confidence=cfg.confidence,
             created_at=now_iso(),
             updated_at=now_iso(),
         )
@@ -46,7 +44,6 @@ class FAISSMemorySystem(MemorySystem):
         cfg = MemoryRecordPayload(**kwargs)
         record = EpisodicRecord(
             id=new_id("epi"),
-            idea_id=cfg.idea_id,
             stage=cfg.stage,
             summary=cfg.summary,
             detail=cfg.detail,

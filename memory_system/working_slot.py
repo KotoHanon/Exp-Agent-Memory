@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator, validate_call
 from openai import OpenAI
 from textwrap import dedent
 from .user_prompt import WORKING_SLOT_FILTER_USER_PROMPT, WORKING_SLOT_ROUTE_USER_PROMPT
-from .llm import OpenAIClient
+from .llm import OpenAIClient, LLMClient
 
 class SlotPayload(BaseModel):
     id: str = Field(default_factory=lambda: new_id("work"))
