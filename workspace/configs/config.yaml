@@ -1,0 +1,8 @@
+learning_rate: 0.001
+batch_size: 32
+target: energy
+output_dir: training_results/
+loss_function: mse
+log_interval: 10
+save_model_interval: 100
+max_epochs: 100
