@@ -1,1 +1,0 @@
-"""Idea agent module."""
