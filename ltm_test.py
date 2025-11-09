@@ -63,14 +63,6 @@ def main() -> None:
     )
     print(f"SemanticRecord updating test: {semantic_memory_store.update([sem_rec])}")
 
-    print('''--------------------Memory batch-processing test--------------------''')
-    new_sem_rec = semantic_memory_store.instantiate_sem_record(
-        summary="Rain augmentations also improve robustness in low-light conditions.",
-        detail="Incorporate rain effects when training data is captured at night or in dim environments.",
-        tags=("augmentation", "robustness"),
-    )
-    print(f"SemanticRecord batch-processing test: {semantic_memory_store.batch_memory_process([sem_rec, new_sem_rec])}")
-
     print('''--------------------Memory query(embedding) test--------------------''')
     results = semantic_memory_store.query("augmentations robustness weather", method="embedding", limit=2)
     print(f"SemanticRecord query test results: {[{'score': r[0], 'record': r[1].to_dict()} for r in results]}")

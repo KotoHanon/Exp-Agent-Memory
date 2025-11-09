@@ -15,7 +15,7 @@ from memory_system import (
 )
 from memory_system.utils import now_iso, new_id, _transfer_dict_to_semantic_text
 from memory_system.denstream import DenStream
-from .base_memory_system_api import MemorySystem, MemorySystemConfig, MemoryRecordPayload
+from .base_memory_system_api import MemorySystem, MemorySystemConfig, SemanticRecordPayload, EpisodicRecordPayload, ProceduralRecordPayload
 from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -29,7 +29,7 @@ class FAISSMemorySystem(MemorySystem):
         self.llm = OpenAIClient(model=cfg.llm_name)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
-        cfg = MemoryRecordPayload(**kwargs)
+        cfg = SemanticRecordPayload(**kwargs)
         record = SemanticRecord(
             id=new_id("sem"),
             summary=cfg.summary,
@@ -41,7 +41,7 @@ class FAISSMemorySystem(MemorySystem):
         return record
     
     def instantiate_epi_record(self, eps: float = 0.6, beta: float = 0.5, mu: float = 4, **kwargs) -> EpisodicRecord:
-        cfg = MemoryRecordPayload(**kwargs)
+        cfg = EpisodicRecordPayload(**kwargs)
         record = EpisodicRecord(
             id=new_id("epi"),
             stage=cfg.stage,
@@ -55,7 +55,7 @@ class FAISSMemorySystem(MemorySystem):
         return record
 
     def instantiate_proc_record(self, **kwargs) -> ProceduralRecord:
-        cfg = MemoryRecordPayload(**kwargs)
+        cfg = ProceduralRecordPayload(**kwargs)
         record = ProceduralRecord(
             id=new_id("proc"),
             name=cfg.name,
@@ -118,15 +118,6 @@ class FAISSMemorySystem(MemorySystem):
             return True
         except Exception as e:
             print(f"Error updating memories: {e}")
-            return False
-
-    def batch_memory_process(self, memories: List[Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = None) -> bool:
-        '''If you can not distinguish memories need to be add or update, use this method.'''
-        try:
-            self.vector_store.batch_memory_process(memories)
-            return True
-        except Exception as e:
-            print(f"Error processing memories: {e}")
             return False
     
     def delete(self, mids: List[str]) -> bool:
@@ -227,7 +218,6 @@ class FAISSMemorySystem(MemorySystem):
             method: str = "embedding", 
             k: int = 5,
             filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
-        # TODO: Debug
         if isinstance(record, SemanticRecord):
             query_text = record.detail
         elif isinstance(record, EpisodicRecord):
