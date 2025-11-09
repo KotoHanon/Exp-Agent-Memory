@@ -43,7 +43,7 @@ class FaissVectorStore(VectorStore):
         self.memory_type = memory_type
         self.index = None
         self.dim = None
-        self.meta: Dict[int, Dict] = {} # {id: SemanticRecord | EpisodicRecord | ProceduralRecord}
+        self.meta: Dict[int, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]] = {} # {id: SemanticRecord | EpisodicRecord | ProceduralRecord}
         self.fidmap2mid: Dict[int, str] = {} #{faiss_id: memory_id}
         self._next_id = 0
     

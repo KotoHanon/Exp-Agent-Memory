@@ -68,6 +68,7 @@ class FAISSMemorySystem(MemorySystem):
         )
         return record
 
+    @property
     def size(self) -> int:
         return self.vector_store._get_record_nums()
 
@@ -85,8 +86,8 @@ class FAISSMemorySystem(MemorySystem):
         return records
     
     def get_last_k_records(self, k: int) -> Tuple[Union[List[SemanticRecord], List[EpisodicRecord], List[ProceduralRecord]], int]:
-        if k >= self.size():
-            return [record for record in self.vector_store.meta.values()], self.size()
+        if k >= self.size:
+            return [record for record in self.vector_store.meta.values()], self.size
         
         else:
             sorted_fids = sorted(self.vector_store.fidmap2mid.keys(), reverse=True)
@@ -138,7 +139,12 @@ class FAISSMemorySystem(MemorySystem):
             print(f"Error deleting memories: {e}")
             return False
     
-    def query(self, query_text: str, method: str = "embedding", limit: int = 5, filters: Dict | None = None) -> List[Tuple[float, Dict]]:
+    def query(self, 
+        query_text: str, 
+        method: str = "embedding", 
+        limit: int = 5, 
+        filters: Dict | None = None) ->List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
+        limit = min(limit, self.size)
         try:
             results = self.vector_store.query(query_text, method=method, limit=limit, filters=filters)
         except Exception as e:
@@ -150,6 +156,7 @@ class FAISSMemorySystem(MemorySystem):
             self, 
             epi_records: List[EpisodicRecord], 
             consistency_threshold: float = 0.8) -> Tuple[List[SemanticRecord], Dict[int, SemanticRecord]]:
+        # TODO: Debug
         assert self.memory_type == "episodic", "Clustering is only supported for episodic memory type."
 
         cidmap2mid: Dict[int, List] = defaultdict(list) # {cluster_id: episodic_record_id}
@@ -160,7 +167,7 @@ class FAISSMemorySystem(MemorySystem):
         updated_cluster_id: List[int] = []
 
         for epi in epi_records:
-            mid2record[epi.id] = epi
+            midmap2record[epi.id] = epi
             info = denstream.process(point=epi.embedding, now=epi.created_at)
             cidmap2mid[info['cluster_id']].append(epi.id)
             updated_cluster_id.append(info['cluster_id'])
@@ -220,6 +227,7 @@ class FAISSMemorySystem(MemorySystem):
             method: str = "embedding", 
             k: int = 5,
             filters: Dict | None = None) -> List[Tuple[float, Union[SemanticRecord, EpisodicRecord, ProceduralRecord]]]:
+        # TODO: Debug
         if isinstance(record, SemanticRecord):
             query_text = record.detail
         elif isinstance(record, EpisodicRecord):
