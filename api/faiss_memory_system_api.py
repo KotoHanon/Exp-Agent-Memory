@@ -224,6 +224,7 @@ class FAISSMemorySystem(MemorySystem):
             last_sem_rec = self.global_cidmap2semrec.get(sem_rec.cluster_id, None)
             if last_sem_rec is None:
                 add_list.append(sem_rec)
+                self.global_cidmap2semrec[sem_rec.cluster_id] = sem_rec
             else:
                 last_sem_rec.update(
                     summary=sem_rec.summary,
@@ -232,7 +233,7 @@ class FAISSMemorySystem(MemorySystem):
                     updated_at=now_iso(),
                 )
                 update_list.append(last_sem_rec)
-            self.global_cidmap2semrec[sem_rec.cluster_id] = sem_rec
+                self.global_cidmap2semrec[sem_rec.cluster_id] = last_sem_rec
 
         self.add(add_list)
         self.update(update_list)
