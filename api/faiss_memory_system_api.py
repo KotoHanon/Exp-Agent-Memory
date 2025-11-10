@@ -32,7 +32,7 @@ class FAISSMemorySystem(MemorySystem):
             self.global_cidmap2semrec: Dict[int, SemanticRecord] = {} # {cluster_id: SemanticRecord}, Only updated when abstracted semantic records are processed
 
         if self.memory_type == "episodic":
-            self.cluster_machine = DenStream(eps=eps, beta=beta, mu=mu)
+            self.cluster_machine = DenStream(eps=cfg.eps, beta=cfg.beta, mu=cfg.mu)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
         cfg = SemanticRecordPayload(**kwargs)

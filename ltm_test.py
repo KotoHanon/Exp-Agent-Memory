@@ -58,8 +58,6 @@ def main() -> None:
     print(f"EpisodicRecord adding test: {episodic_memory_store.add([epi_rec])}")
     print(f"ProceduralRecord adding test: {procedural_memory_store.add([proc_rec])}")
 
-    sleep(1000)
-
     print('''--------------------Memory update test--------------------''')
     sem_rec.update(
         detail="Updated detail: prioritize fog and rain injection.",

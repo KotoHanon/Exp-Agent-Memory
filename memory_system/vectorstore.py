@@ -105,7 +105,7 @@ class FaissVectorStore(VectorStore):
         self._ensure_index(updated_vec.shape[1])
         self.index.add_with_ids(updated_vec, np.array(fids, dtype="int64"))
 
-        for i, r, o in zip(fids, raws, old_records):
+        for i, r in zip(fids, raws):
             # bind data for every id
             self.meta[int(i)] = r
 
