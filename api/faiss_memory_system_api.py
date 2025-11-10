@@ -27,7 +27,12 @@ class FAISSMemorySystem(MemorySystem):
         self.memory_type = cfg.memory_type
         self.vector_store = FaissVectorStore(cfg.model_path, self.memory_type)
         self.llm = OpenAIClient(model=cfg.llm_name)
-        self.global_cidmap2semrec: Dict[int, SemanticRecord] = {} # {cluster_id: SemanticRecord}, Only updated when abstracted semantic records are processed
+
+        if self.memory_type == "semantic":
+            self.global_cidmap2semrec: Dict[int, SemanticRecord] = {} # {cluster_id: SemanticRecord}, Only updated when abstracted semantic records are processed
+
+        if self.memory_type == "episodic":
+            self.cluster_machine = DenStream(eps=eps, beta=beta, mu=mu)
 
     def instantiate_sem_record(self, **kwargs) -> SemanticRecord:
         cfg = SemanticRecordPayload(**kwargs)
@@ -41,7 +46,7 @@ class FAISSMemorySystem(MemorySystem):
         )
         return record
     
-    def instantiate_epi_record(self, eps: float = 0.6, beta: float = 0.5, mu: float = 4, **kwargs) -> EpisodicRecord:
+    def instantiate_epi_record(self, **kwargs) -> EpisodicRecord:
         cfg = EpisodicRecordPayload(**kwargs)
         record = EpisodicRecord(
             id=new_id("epi"),
@@ -51,8 +56,7 @@ class FAISSMemorySystem(MemorySystem):
             tags=cfg.tags,
             created_at=now_iso(),
         )
-        record.embedding = self.vector_store._embed(_transfer_dict_to_semantic_text(record.detail))
-        self.cluster_machine = DenStream(eps=eps, beta=beta, mu=mu)        
+        record.embedding = self.vector_store._embed(_transfer_dict_to_semantic_text(record.detail))        
         return record
 
     def instantiate_proc_record(self, **kwargs) -> ProceduralRecord:
