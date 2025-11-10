@@ -93,7 +93,6 @@ class FaissVectorStore(VectorStore):
 
         mids = [raw.id for raw in raws]
         midmap2fid = {mid: fid for fid, mid in self.fidmap2mid.items()}
-        print(midmap2fid)
         fids = [midmap2fid[mid] for mid in mids]
 
         self.delete(mids)
@@ -106,7 +105,7 @@ class FaissVectorStore(VectorStore):
         self._ensure_index(updated_vec.shape[1])
         self.index.add_with_ids(updated_vec, np.array(fids, dtype="int64"))
 
-        for i, r in zip(fids, raws):
+        for i, r, o in zip(fids, raws, old_records):
             # bind data for every id
             self.meta[int(i)] = r
 

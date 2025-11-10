@@ -20,6 +20,7 @@ class SemanticRecordPayload(BaseModel):
     summary: str = Field("", description="A brief summary of the SemanticRecord/EpisodicRecord.")
     detail: Union[str, dict] = Field("", description="Detailed information about the SemanticRecord.")
     tags: Optional[Iterable[str]] = Field(None, description="Tags associated with the SemanticRecord.")
+    is_abstracted: bool = Field(False, description="Indicates if the SemanticRecord is abstracted.")
 
 
 class EpisodicRecordPayload(BaseModel):

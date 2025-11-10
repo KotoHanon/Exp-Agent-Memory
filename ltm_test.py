@@ -21,6 +21,7 @@ def main() -> None:
         summary="Fog augmentations most beneficial when baseline lacks weather variability.",
         detail="Prioritize fog injection when training data is captured in controlled conditions.",
         tags=("augmentation", "robustness"),
+        is_abstracted=False,
     )
     print(f"SemanticRecord instantiation result: {sem_rec.to_dict()}")
 
@@ -56,6 +57,8 @@ def main() -> None:
     print(f"SemanticRecord adding test: {semantic_memory_store.add([sem_rec])}")
     print(f"EpisodicRecord adding test: {episodic_memory_store.add([epi_rec])}")
     print(f"ProceduralRecord adding test: {procedural_memory_store.add([proc_rec])}")
+
+    sleep(1000)
 
     print('''--------------------Memory update test--------------------''')
     sem_rec.update(
